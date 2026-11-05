@@ -44,13 +44,29 @@ export function PeriodsView({ periods, activePeriod, onSelectPeriod }) {
     },
     {
       key: 'quota',
-      label: 'Pagu Kuota',
-      width: '14%',
-      render: (val) => (
-        <span className="clay-badge" style={{ fontWeight: '800', fontFamily: 'monospace', color: 'var(--color-green-700)', backgroundColor: '#edf8f3', padding: '4px 10px', fontSize: '13px' }}>
-          {val} Calon
-        </span>
-      ),
+      label: 'Pagu & Program Bantuan',
+      width: '22%',
+      render: (val, row) => {
+        const bd = row.quotaBreakdown || { sembako: 1, pkh: 1, pbijk: 1 }
+        return (
+          <div>
+            <span className="clay-badge" style={{ fontWeight: '800', fontFamily: 'monospace', color: 'var(--color-green-700)', backgroundColor: '#edf8f3', padding: '3px 10px', fontSize: '12.5px' }}>
+              Total: {val} Calon
+            </span>
+            <div style={{ fontSize: '10.5px', color: 'var(--color-text-muted)', marginTop: '4px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+              <span className="clay-badge" style={{ fontSize: '10px', padding: '1px 6px', backgroundColor: '#ffffff', color: 'var(--color-green-800)' }}>
+                Sembako: {bd.sembako ?? 1}
+              </span>
+              <span className="clay-badge" style={{ fontSize: '10px', padding: '1px 6px', backgroundColor: '#ffffff', color: '#0284c7' }}>
+                PKH: {bd.pkh ?? 1}
+              </span>
+              <span className="clay-badge" style={{ fontSize: '10px', padding: '1px 6px', backgroundColor: '#ffffff', color: '#9333ea' }}>
+                PBI-JK: {bd.pbijk ?? 1}
+              </span>
+            </div>
+          </div>
+        )
+      },
     },
     {
       key: 'dates',

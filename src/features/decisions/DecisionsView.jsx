@@ -282,11 +282,25 @@ export function DecisionsView({
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: '800', fontSize: '16px', color: 'var(--color-green-950)' }}>
                       #{row.rank} {res?.name || row.candidateId}
                     </span>
                     <StatusBadge status={rec?.status} customLabel={`Rekomendasi: ${rec?.status}`} />
+                    {rec?.status === 'RECOMMENDED' && (
+                      <span
+                        className="clay-badge"
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          backgroundColor: row.rank === 1 ? '#edf8f3' : row.rank === 2 ? '#e0f2fe' : '#f3e8ff',
+                          color: row.rank === 1 ? 'var(--color-green-700)' : row.rank === 2 ? '#0284c7' : '#9333ea',
+                          padding: '2px 8px',
+                        }}
+                      >
+                        {row.rank === 1 ? 'Bantuan Sembako' : row.rank === 2 ? 'Bantuan PKH' : 'Bantuan PBI-JK'}
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
                     NIK: <code>{res?.nikMasked || '—'}</code> · Alamat: {res?.addressRtRw || '—'}

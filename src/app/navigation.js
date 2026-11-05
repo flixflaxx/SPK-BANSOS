@@ -9,6 +9,7 @@ import {
   FileEdit,
   FileText,
   History,
+  Layers,
   LayoutDashboard,
   Lightbulb,
   Printer,
@@ -39,6 +40,7 @@ export const NAVIGATION_GROUPS = [
     icon: Users,
     items: [
       { id: 'residents', label: 'Data Warga', icon: Users, featureNum: 3 },
+      { id: 'desil', label: 'Tingkat Desil DTKS', icon: Layers, featureNum: '3B' },
       { id: 'candidates', label: 'Calon Penerima', icon: ClipboardList, featureNum: 4 },
       { id: 'verification', label: 'Verifikasi Berkas', icon: CheckCircle2, featureNum: 5 },
     ],

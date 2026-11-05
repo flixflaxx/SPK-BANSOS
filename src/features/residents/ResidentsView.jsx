@@ -1,11 +1,26 @@
 import { useState, useEffect, useRef } from 'react'
-import { FolderOpen, Plus, Users, FileCheck2, Home, Search } from 'lucide-react'
+import {
+  FolderOpen,
+  Plus,
+  Users,
+  FileCheck2,
+  Home,
+  Search,
+  UserCheck,
+  Check,
+  AlertCircle,
+  CheckCircle2,
+  ShieldCheck,
+  Edit3,
+  X,
+} from 'lucide-react'
 import { DataTable } from '../../components/common/DataTable.jsx'
 import { Modal } from '../../components/common/Modal.jsx'
 import { PageHeader } from '../../components/common/PageHeader.jsx'
 import { Panel } from '../../components/common/Panel.jsx'
+import { DESIL_OPTIONS, getDesilMeta } from './desilConstants.js'
 
-export function ResidentsView({ residents, onAddResident }) {
+export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formData, setFormData] = useState({
@@ -15,8 +30,25 @@ export function ResidentsView({ residents, onAddResident }) {
     addressStreet: '',
     addressRtRw: '',
     phone: '',
+    desil: 1,
   })
   const [formError, setFormError] = useState('')
+
+  // State untuk Pop-up Alert Edit Profil Warga (SweetAlert style)
+  const [editingResident, setEditingResident] = useState(null)
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    nikMasked: '',
+    addressRtRw: '',
+    addressStreet: '',
+    phone: '',
+    desil: 1,
+    documentCount: 1,
+    birthDate: '',
+  })
+  const [editFormError, setEditFormError] = useState('')
+  const [editSuccessAlert, setEditSuccessAlert] = useState(null)
+
   const containerRef = useRef(null)
 
   useEffect(() => {
@@ -33,6 +65,36 @@ export function ResidentsView({ residents, onAddResident }) {
     }
   }, [])
 
+  // Scroll lock & Keyboard shortcut (Escape) untuk Alert Pop-up Edit Profil
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && editingResident) {
+        setEditingResident(null)
+        setEditSuccessAlert(null)
+      }
+    }
+    if (editingResident) {
+      document.body.classList.add('scroll-locked')
+      document.documentElement.classList.add('scroll-locked')
+      const mainScroll = document.querySelector('.fintech-main-scroll')
+      if (mainScroll) {
+        mainScroll.classList.add('scroll-locked')
+        mainScroll.style.overflow = 'hidden'
+      }
+      window.addEventListener('keydown', handleKeyDown)
+    }
+    return () => {
+      document.body.classList.remove('scroll-locked')
+      document.documentElement.classList.remove('scroll-locked')
+      const mainScroll = document.querySelector('.fintech-main-scroll')
+      if (mainScroll) {
+        mainScroll.classList.remove('scroll-locked')
+        mainScroll.style.overflow = ''
+      }
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [editingResident])
+
   const filteredResidents = residents.filter(
     (r) =>
       r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -41,6 +103,67 @@ export function ResidentsView({ residents, onAddResident }) {
   )
 
   const totalDocuments = residents.reduce((acc, r) => acc + (r.documentCount || 0), 0)
+
+  // Buka Pop-up Alert Edit Profil
+  function handleOpenEditModal(resident) {
+    setEditingResident(resident)
+    setEditFormData({
+      id: resident.id,
+      name: resident.name || '',
+      nikMasked: resident.nikMasked || '',
+      addressRtRw: resident.addressRtRw || '001/003',
+      addressStreet: resident.addressStreet || '',
+      phone: resident.phone || '',
+      desil: Number(resident.desil || 1),
+      documentCount: resident.documentCount ?? 1,
+      birthDate: resident.birthDate || '1980-01-01',
+    })
+    setEditFormError('')
+    setEditSuccessAlert(null)
+  }
+
+  // Simpan Perubahan Profil Warga
+  function handleSaveEdit(e) {
+    e.preventDefault()
+    if (!editFormData.name.trim()) {
+      setEditFormError('Nama lengkap warga wajib diisi.')
+      return
+    }
+    if (!editFormData.addressRtRw.trim()) {
+      setEditFormError('RT / RW wajib diisi.')
+      return
+    }
+
+    const desilNum = Number(editFormData.desil || 1)
+    const meta = getDesilMeta(desilNum)
+
+    const updatedResident = {
+      ...editingResident,
+      name: editFormData.name.trim(),
+      addressRtRw: editFormData.addressRtRw.trim(),
+      addressStreet: editFormData.addressStreet.trim(),
+      phone: editFormData.phone.trim(),
+      desil: desilNum,
+      desilLabel: meta.label,
+      dtksStatus: meta.dtksStatus,
+      documentCount: Number(editFormData.documentCount) || 1,
+      birthDate: editFormData.birthDate || '1980-01-01',
+      povertyIndex: meta.povertyIndex,
+      socialAidEligibility: meta.socialAidEligibility,
+      updatedAt: new Date().toISOString(),
+    }
+
+    if (onUpdateResident) {
+      onUpdateResident(updatedResident)
+    }
+
+    // Tampilkan feedback pop up alert sukses
+    setEditSuccessAlert(`Data profil ${updatedResident.name} berhasil disimpan ke database.`)
+    setTimeout(() => {
+      setEditSuccessAlert(null)
+      setEditingResident(null)
+    }, 1400)
+  }
 
   function handleCreate(e) {
     e.preventDefault()
@@ -53,6 +176,9 @@ export function ResidentsView({ residents, onAddResident }) {
       return
     }
     const masked = `${formData.nik.slice(0, 6)}******${formData.nik.slice(12)}`
+    const desilNum = Number(formData.desil || 1)
+    const meta = getDesilMeta(desilNum)
+
     const newResident = {
       id: `res-${Date.now()}`,
       nikMasked: masked,
@@ -63,11 +189,16 @@ export function ResidentsView({ residents, onAddResident }) {
       addressRtRw: formData.addressRtRw.trim() || '001/003',
       phone: formData.phone.trim() || '0812-****-0000',
       documentCount: 1,
+      desil: desilNum,
+      desilLabel: meta.label,
+      dtksStatus: meta.dtksStatus,
+      povertyIndex: meta.povertyIndex,
+      socialAidEligibility: meta.socialAidEligibility,
       createdAt: new Date().toISOString(),
     }
     onAddResident(newResident)
     setIsModalOpen(false)
-    setFormData({ name: '', nik: '', birthDate: '', addressStreet: '', addressRtRw: '', phone: '' })
+    setFormData({ name: '', nik: '', birthDate: '', addressStreet: '', addressRtRw: '', phone: '', desil: 1 })
     setFormError('')
   }
 
@@ -75,7 +206,7 @@ export function ResidentsView({ residents, onAddResident }) {
     {
       key: 'name',
       label: 'Nama Warga',
-      width: '22%',
+      width: '20%',
       render: (val) => (
         <span style={{ fontWeight: '800', color: 'var(--color-green-950)' }}>
           {val}
@@ -85,7 +216,7 @@ export function ResidentsView({ residents, onAddResident }) {
     {
       key: 'nikMasked',
       label: 'NIK (Masked)',
-      width: '18%',
+      width: '15%',
       render: (val) => (
         <span style={{ fontFamily: 'monospace', fontWeight: '800', color: 'var(--color-green-700)' }}>
           {val}
@@ -93,20 +224,45 @@ export function ResidentsView({ residents, onAddResident }) {
       ),
     },
     {
+      key: 'desil',
+      label: 'Desil DTKS',
+      width: '15%',
+      render: (val) => {
+        const meta = getDesilMeta(val)
+        return (
+          <span
+            className="clay-badge"
+            title={meta.selectLabel}
+            style={{
+              backgroundColor: meta.bg,
+              color: meta.color,
+              padding: '3px 10px',
+              fontSize: '11px',
+              fontWeight: '800',
+              border: `1px solid ${meta.border}`,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {meta.shortLabel}
+          </span>
+        )
+      },
+    },
+    {
       key: 'addressRtRw',
       label: 'RT / RW',
-      width: '12%',
+      width: '10%',
       render: (val) => (
         <span className="clay-badge" style={{ backgroundColor: '#edf8f3', color: 'var(--color-green-800)', padding: '3px 10px' }}>
           {val}
         </span>
       ),
     },
-    { key: 'addressStreet', label: 'Alamat Detail', width: '22%' },
+    { key: 'addressStreet', label: 'Alamat Detail', width: '18%' },
     {
       key: 'documentCount',
       label: 'Bukti Berkas',
-      width: '14%',
+      width: '12%',
       render: (count) => (
         <span
           className="clay-badge"
@@ -132,18 +288,26 @@ export function ResidentsView({ residents, onAddResident }) {
       render: (_, row) => (
         <button
           type="button"
-          onClick={() => alert(`Detail profil ${row.name} (Simulasi preview)`)}
+          onClick={() => handleOpenEditModal(row)}
           className="clay-badge"
+          title={`Lihat Profil & Edit ${row.name}`}
           style={{
             fontSize: '11.5px',
-            color: 'var(--color-green-700)',
-            backgroundColor: '#ffffff',
+            color: 'var(--fintech-primary, #087A59)',
+            backgroundColor: 'var(--fintech-soft-green, #E8F5EF)',
             fontWeight: '700',
             cursor: 'pointer',
-            padding: '4px 12px',
+            padding: '5px 12px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            border: '1px solid rgba(8, 122, 89, 0.25)',
+            borderRadius: '9999px',
+            transition: 'all 0.15s ease',
           }}
         >
-          Lihat Profil
+          <Edit3 size={13} />
+          <span>Lihat Profil</span>
         </button>
       ),
     },
@@ -171,7 +335,7 @@ export function ResidentsView({ residents, onAddResident }) {
         }
       />
 
-      {/* Top 3 Squircle Metric Cards with Claymorphism */}
+      {/* Top 3 Squircle Metric Cards */}
       <div
         className="responsive-kpi-grid"
         style={{
@@ -205,11 +369,14 @@ export function ResidentsView({ residents, onAddResident }) {
           <div
             className="clay-bubble"
             style={{
-              width: '48px',
-              height: '48px',
+              width: '44px',
+              height: '44px',
               borderRadius: '16px',
-              backgroundColor: '#e0f2fe',
-              color: '#0284c7',
+              backgroundColor: '#edf8f3',
+              color: 'var(--color-green-700)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             <Users size={22} />
@@ -227,27 +394,27 @@ export function ResidentsView({ residents, onAddResident }) {
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                BERKAS TERALOKASI
-              </span>
-              <span className="pulse-indicator" />
+            <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              DOKUMEN TERVERIFIKASI
             </div>
-            <div style={{ fontSize: '30px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--color-green-700)', marginTop: '6px', lineHeight: 1.1 }}>
-              {totalDocuments} <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-text-muted)' }}>Dokumen</span>
+            <div style={{ fontSize: '30px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--color-green-950)', marginTop: '6px', lineHeight: 1.1 }}>
+              {totalDocuments} <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-text-muted)' }}>Berkas</span>
             </div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-subtle)', marginTop: '4px' }}>
-              KTP, KK, dan surat keterangan RT
+              KK, KTP, dan SKTM warga
             </div>
           </div>
           <div
             className="clay-bubble"
             style={{
-              width: '48px',
-              height: '48px',
+              width: '44px',
+              height: '44px',
               borderRadius: '16px',
               backgroundColor: '#edf8f3',
               color: 'var(--color-green-700)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             <FileCheck2 size={22} />
@@ -266,23 +433,26 @@ export function ResidentsView({ residents, onAddResident }) {
         >
           <div>
             <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              WILAYAH CAKUPAN
+              WILAYAH BULAK AMAH
             </div>
-            <div style={{ fontSize: '26px', fontWeight: '800', color: 'var(--color-green-950)', marginTop: '6px', lineHeight: 1.1 }}>
-              Bulak Amah
+            <div style={{ fontSize: '30px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--color-green-950)', marginTop: '6px', lineHeight: 1.1 }}>
+              08 <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-text-muted)' }}>RT</span>
             </div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-subtle)', marginTop: '4px' }}>
-              RT 001 - RT 003 / RW 003
+              Cakupan RW 003 Bulak Amah
             </div>
           </div>
           <div
             className="clay-bubble"
             style={{
-              width: '48px',
-              height: '48px',
+              width: '44px',
+              height: '44px',
               borderRadius: '16px',
-              backgroundColor: '#fef3c7',
-              color: 'var(--color-warning)',
+              backgroundColor: '#edf8f3',
+              color: 'var(--color-green-700)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             <Home size={22} />
@@ -290,50 +460,71 @@ export function ResidentsView({ residents, onAddResident }) {
         </div>
       </div>
 
-      <Panel>
-        <div style={{ marginBottom: '20px', display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: '260px', maxWidth: '440px' }}>
-            <Search size={16} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-green-700)' }} />
+      {/* Main Table Panel */}
+      <Panel
+        title="Daftar Warga Terdaftar"
+        subtitle="Data identitas warga Kampung Bulak Amah untuk penentuan bantuan sosial."
+        actions={
+          <div style={{ position: 'relative', width: '260px' }}>
+            <Search
+              size={15}
+              style={{
+                position: 'absolute',
+                left: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--color-text-subtle)',
+              }}
+            />
             <input
               type="text"
-              placeholder="Cari berdasarkan nama warga atau RT/RW..."
+              placeholder="Cari nama atau RT/RW..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
+                paddingLeft: '34px',
                 width: '100%',
-                padding: '11px 16px 11px 42px',
-                borderRadius: '9999px',
-                fontSize: '13px',
+                fontSize: '12.5px',
+                paddingTop: '8px',
+                paddingBottom: '8px',
               }}
             />
           </div>
-          <span className="clay-badge" style={{ backgroundColor: '#ffffff', color: 'var(--color-text-muted)', fontSize: '12px', padding: '7px 14px' }}>
-            Menampilkan {filteredResidents.length} dari {residents.length} warga
-          </span>
-        </div>
-
-        <DataTable columns={columns} data={filteredResidents} />
+        }
+      >
+        <DataTable
+          columns={columns}
+          data={filteredResidents}
+          keyField="id"
+          emptyMessage="Tidak ada data warga yang sesuai dengan pencarian."
+        />
       </Panel>
 
-      {/* Modal Tambah Warga */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Tambah Data Warga Baru">
-        {formError && (
-          <div
-            className="clay-badge"
-            style={{
-              backgroundColor: '#fee2e2',
-              color: '#dc2626',
-              padding: '10px 14px',
-              fontSize: '12.5px',
-              marginBottom: '16px',
-              width: '100%',
-              justifyContent: 'center',
-            }}
-          >
-            {formError}
-          </div>
-        )}
-        <form onSubmit={handleCreate}>
+      {/* Modal Tambah Data Warga Baru */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Tambah Data Warga Baru"
+        maxWidth="540px"
+      >
+        <form onSubmit={handleCreate} style={{ padding: '24px 26px' }}>
+          {formError && (
+            <div
+              className="clay-badge"
+              style={{
+                backgroundColor: '#fee2e2',
+                color: '#dc2626',
+                padding: '10px 14px',
+                fontSize: '12.5px',
+                marginBottom: '16px',
+                width: '100%',
+                justifyContent: 'center',
+              }}
+            >
+              {formError}
+            </div>
+          )}
+
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
               Nama Lengkap Warga
@@ -341,6 +532,7 @@ export function ResidentsView({ residents, onAddResident }) {
             <input
               type="text"
               required
+              placeholder="Contoh: Budi Santoso"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               style={{ width: '100%' }}
@@ -389,7 +581,7 @@ export function ResidentsView({ residents, onAddResident }) {
             </div>
           </div>
 
-          <div style={{ marginBottom: '22px' }}>
+          <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
               Alamat Jalan / Tempat Tinggal
             </label>
@@ -400,6 +592,26 @@ export function ResidentsView({ residents, onAddResident }) {
               onChange={(e) => setFormData({ ...formData, addressStreet: e.target.value })}
               style={{ width: '100%' }}
             />
+          </div>
+
+          <div style={{ marginBottom: '22px' }}>
+            <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
+              Klasifikasi Desil Kesejahteraan (DTKS Kemensos Desil 1–10)
+            </label>
+            <select
+              value={formData.desil || 1}
+              onChange={(e) => setFormData({ ...formData, desil: Number(e.target.value) })}
+              style={{ width: '100%', padding: '10px 14px', fontSize: '13px' }}
+            >
+              {DESIL_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.selectLabel}
+                </option>
+              ))}
+            </select>
+            <span style={{ fontSize: '11px', color: 'var(--color-text-subtle)', marginTop: '4px', display: 'block' }}>
+              Klasifikasi pendataan seluruh warga dari Desil 1 (Sangat Miskin) hingga Desil 10 (Sangat Mampu).
+            </span>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
@@ -421,6 +633,263 @@ export function ResidentsView({ residents, onAddResident }) {
           </div>
         </form>
       </Modal>
+
+      {/* ========================================================
+          POP-UP ALERT: LIHAT & EDIT PROFIL WARGA (SWEETALERT STYLE)
+          ======================================================== */}
+      {editingResident && (
+        <div
+          className="fintech-alert-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="alert-popup-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !editSuccessAlert) {
+              setEditSuccessAlert(null)
+              setEditingResident(null)
+            }
+          }}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          <div className="fintech-alert-popup">
+            {/* Tombol Tutup X di sudut */}
+            <button
+              type="button"
+              className="fintech-alert-close"
+              onClick={() => {
+                setEditSuccessAlert(null)
+                setEditingResident(null)
+              }}
+              title="Tutup (Esc)"
+              aria-label="Tutup edit profil warga"
+            >
+              <X size={16} />
+            </button>
+
+            {/* State 1: Alert Sukses (SweetAlert Success State) */}
+            {editSuccessAlert ? (
+              <div style={{ textAlign: 'center', padding: '16px 8px 10px' }}>
+                <div className="fintech-alert-icon-circle success">
+                  <CheckCircle2 size={36} strokeWidth={2.5} />
+                </div>
+                <h3
+                  id="alert-popup-title"
+                  className="fintech-alert-title"
+                  style={{ color: 'var(--fintech-success, #16A36B)' }}
+                >
+                  Berhasil Diperbarui!
+                </h3>
+                <p className="fintech-alert-subtitle" style={{ marginBottom: '24px' }}>
+                  {editSuccessAlert}
+                </p>
+                <button
+                  type="button"
+                  className="fintech-alert-btn-confirm"
+                  onClick={() => {
+                    setEditSuccessAlert(null)
+                    setEditingResident(null)
+                  }}
+                  style={{ minWidth: '130px', justifyContent: 'center', margin: '0 auto' }}
+                >
+                  Selesai
+                </button>
+              </div>
+            ) : (
+              /* State 2: Pop-up Alert Form Edit Profil Warga */
+              <div>
+                {/* Alert Top Icon */}
+                <div className="fintech-alert-icon-circle">
+                  <UserCheck size={32} strokeWidth={2.2} />
+                </div>
+
+                <h3 id="alert-popup-title" className="fintech-alert-title">
+                  Edit Profil Warga
+                </h3>
+                <p className="fintech-alert-subtitle">
+                  Perbarui identitas kependudukan dan status klasifikasi DTKS
+                </p>
+
+                {/* Subtitle / NIK Badge */}
+                <div className="fintech-alert-badge-row">
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '4px 12px',
+                      borderRadius: '9999px',
+                      backgroundColor: '#F4F6F5',
+                      border: '1px solid #EDF0EE',
+                      fontSize: '11.5px',
+                      fontFamily: 'monospace',
+                      fontWeight: 700,
+                      color: 'var(--fintech-primary, #087A59)',
+                    }}
+                  >
+                    <ShieldCheck size={13} />
+                    NIK: {editingResident.nikMasked}
+                  </span>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '4px 10px',
+                      borderRadius: '9999px',
+                      backgroundColor: getDesilMeta(editingResident.desil).bg,
+                      border: `1px solid ${getDesilMeta(editingResident.desil).border}`,
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: getDesilMeta(editingResident.desil).color,
+                    }}
+                  >
+                    {getDesilMeta(editingResident.desil).label}
+                  </span>
+                </div>
+
+                {/* Error Banner jika ada */}
+                {editFormError && (
+                  <div
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      backgroundColor: '#FEF2F2',
+                      border: '1px solid #FCA5A5',
+                      color: '#991B1B',
+                      fontSize: '12.5px',
+                      fontWeight: 600,
+                      marginBottom: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <AlertCircle size={16} />
+                    <span>{editFormError}</span>
+                  </div>
+                )}
+
+                {/* Form Input SweetAlert style */}
+                <form onSubmit={handleSaveEdit} className="fintech-alert-form">
+                  <div className="fintech-alert-field">
+                    <label htmlFor="edit-name" className="fintech-alert-label">
+                      Nama Lengkap Warga
+                    </label>
+                    <input
+                      id="edit-name"
+                      type="text"
+                      required
+                      value={editFormData.name}
+                      onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                      placeholder="Masukkan nama lengkap..."
+                      className="fintech-alert-input"
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="fintech-alert-field">
+                      <label htmlFor="edit-rtrw" className="fintech-alert-label">
+                        RT / RW
+                      </label>
+                      <input
+                        id="edit-rtrw"
+                        type="text"
+                        required
+                        value={editFormData.addressRtRw}
+                        onChange={(e) => setEditFormData({ ...editFormData, addressRtRw: e.target.value })}
+                        placeholder="Contoh: 001/003"
+                        className="fintech-alert-input"
+                      />
+                    </div>
+
+                    <div className="fintech-alert-field">
+                      <label htmlFor="edit-phone" className="fintech-alert-label">
+                        Nomor WhatsApp / HP
+                      </label>
+                      <input
+                        id="edit-phone"
+                        type="text"
+                        value={editFormData.phone}
+                        onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                        placeholder="0812-xxxx-xxxx"
+                        className="fintech-alert-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="fintech-alert-field">
+                    <label htmlFor="edit-street" className="fintech-alert-label">
+                      Alamat Jalan / Tempat Tinggal
+                    </label>
+                    <input
+                      id="edit-street"
+                      type="text"
+                      value={editFormData.addressStreet}
+                      onChange={(e) => setEditFormData({ ...editFormData, addressStreet: e.target.value })}
+                      placeholder="Contoh: Jl. Bulak Amah RT 01"
+                      className="fintech-alert-input"
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
+                    <div className="fintech-alert-field">
+                      <label htmlFor="edit-desil" className="fintech-alert-label">
+                        Tingkat Desil DTKS
+                      </label>
+                      <select
+                        id="edit-desil"
+                        value={editFormData.desil}
+                        onChange={(e) => setEditFormData({ ...editFormData, desil: Number(e.target.value) })}
+                        className="fintech-alert-input"
+                      >
+                        {DESIL_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="fintech-alert-field">
+                      <label htmlFor="edit-docs" className="fintech-alert-label">
+                        Jumlah Bukti Berkas
+                      </label>
+                      <input
+                        id="edit-docs"
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={editFormData.documentCount}
+                        onChange={(e) => setEditFormData({ ...editFormData, documentCount: Number(e.target.value) || 1 })}
+                        className="fintech-alert-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="fintech-alert-actions">
+                    <button
+                      type="button"
+                      className="fintech-alert-btn-cancel"
+                      onClick={() => {
+                        setEditSuccessAlert(null)
+                        setEditingResident(null)
+                      }}
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      className="fintech-alert-btn-confirm"
+                    >
+                      <Check size={16} />
+                      <span>Simpan Perubahan</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

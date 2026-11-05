@@ -11,9 +11,9 @@ import {
   UserCheck,
   Users,
   Zap,
+  Sparkles,
 } from 'lucide-react'
 import { KpiCard } from '../../components/common/KpiCard.jsx'
-import { PageHeader } from '../../components/common/PageHeader.jsx'
 import { StatusBadge } from '../../components/common/StatusBadge.jsx'
 import { formatExact } from '@shared/domain/saw/fraction.js'
 
@@ -28,41 +28,36 @@ function getInitials(name = '') {
 function getTimelineStyle(action = '') {
   if (action.includes('VERIF') || action.includes('RESIDENT')) {
     return {
-      color: '#16a34a',
-      bg: 'linear-gradient(135deg, #bbf7d0, #86efac)',
-      marbleShadow: '3px 5px 12px rgba(22, 163, 74, 0.25), inset 2px 2px 5px rgba(255, 255, 255, 0.8), inset -2px -2px 5px rgba(0, 0, 0, 0.15)',
-      icon: <UserCheck size={14} />,
+      bg: '#E8F5EF',
+      color: '#16A36B',
+      icon: <UserCheck size={15} />,
     }
   }
   if (action.includes('CALCULATION')) {
     return {
-      color: '#9333ea',
-      bg: 'linear-gradient(135deg, #e9d5ff, #d8b4fe)',
-      marbleShadow: '3px 5px 12px rgba(147, 51, 234, 0.25), inset 2px 2px 5px rgba(255, 255, 255, 0.8), inset -2px -2px 5px rgba(0, 0, 0, 0.15)',
-      icon: <Zap size={14} />,
+      bg: '#EFF6FF',
+      color: '#4386CF',
+      icon: <Zap size={15} />,
     }
   }
   if (action.includes('PERIOD') || action.includes('QUOTA')) {
     return {
-      color: '#0284c7',
-      bg: 'linear-gradient(135deg, #bae6fd, #7dd3fc)',
-      marbleShadow: '3px 5px 12px rgba(2, 132, 199, 0.25), inset 2px 2px 5px rgba(255, 255, 255, 0.8), inset -2px -2px 5px rgba(0, 0, 0, 0.15)',
-      icon: <Calendar size={14} />,
+      bg: '#FEF3C7',
+      color: '#EBA12A',
+      icon: <Calendar size={15} />,
     }
   }
   if (action.includes('DECISION')) {
     return {
-      color: '#d97706',
-      bg: 'linear-gradient(135deg, #fde68a, #fcd34d)',
-      marbleShadow: '3px 5px 12px rgba(217, 119, 6, 0.25), inset 2px 2px 5px rgba(255, 255, 255, 0.8), inset -2px -2px 5px rgba(0, 0, 0, 0.15)',
-      icon: <FileCheck size={14} />,
+      bg: '#FDF2F2',
+      color: '#E34B4B',
+      icon: <FileCheck size={15} />,
     }
   }
   return {
-    color: '#0f766e',
-    bg: 'linear-gradient(135deg, #99f6e4, #5eead4)',
-    marbleShadow: '3px 5px 12px rgba(15, 118, 110, 0.25), inset 2px 2px 5px rgba(255, 255, 255, 0.8), inset -2px -2px 5px rgba(0, 0, 0, 0.15)',
-    icon: <Activity size={14} />,
+    bg: '#F1F3F2',
+    color: '#087A59',
+    icon: <Activity size={15} />,
   }
 }
 
@@ -78,73 +73,16 @@ export function DashboardView({
 
   const verifiedCount = candidates.filter((c) => c.verificationStatus === 'VERIFIED').length
   const pendingCount = candidates.filter((c) => c.verificationStatus === 'PENDING').length
+  const otherCount = Math.max(0, residents.length - verifiedCount - pendingCount)
+  const totalResidents = Math.max(1, residents.length)
   const quota = activePeriod?.quota ?? 0
   const topRankings = calculationRun?.results?.slice(0, 5) || []
 
-  // Initialize Anime.js animations with Claymorphism easeOutBack & Elasticity
-  useEffect(() => {
-    const anime = typeof window !== 'undefined' ? window.anime : null
-    if (!anime) return
+  const verifiedPercent = Math.round((verifiedCount / totalResidents) * 100)
+  const pendingPercent = Math.round((pendingCount / totalResidents) * 100)
+  const otherPercent = Math.max(0, 100 - verifiedPercent - pendingPercent)
 
-    // 1. Stagger bouncy entrance for Claymorphism cards
-    anime({
-      targets: '.clay-anim-card',
-      translateY: [24, 0],
-      opacity: [0, 1],
-      delay: anime.stagger(90, { start: 80 }),
-      easing: 'easeOutBack',
-      duration: 750,
-    })
-
-    // 2. Number counter animation counting up from 0 to target
-    const counterElements = document.querySelectorAll('.counter-val')
-    counterElements.forEach((el) => {
-      const target = parseFloat(el.getAttribute('data-target') || '0')
-      if (Number.isNaN(target)) return
-      const obj = { count: 0 }
-      anime({
-        targets: obj,
-        count: target,
-        round: 1,
-        easing: 'easeOutExpo',
-        duration: 1200,
-        update: () => {
-          el.textContent = Math.round(obj.count)
-        },
-      })
-    })
-
-    // 3. Stagger bouncy entrance for ranking capsule cards
-    anime({
-      targets: '.animate-ranking-item',
-      translateX: [-16, 0],
-      opacity: [0, 1],
-      delay: anime.stagger(70, { start: 250 }),
-      easing: 'easeOutBack',
-      duration: 600,
-    })
-
-    // 4. 3D Clay Progress Bar fill animation
-    anime({
-      targets: '.progress-v-fill',
-      width: (el) => [0, el.getAttribute('data-width') || '0%'],
-      delay: anime.stagger(80, { start: 350 }),
-      easing: 'easeOutQuart',
-      duration: 1100,
-    })
-
-    // 5. Timeline items stagger
-    anime({
-      targets: '.animate-timeline-item',
-      translateY: [12, 0],
-      opacity: [0, 1],
-      delay: anime.stagger(60, { start: 300 }),
-      easing: 'easeOutBack',
-      duration: 550,
-    })
-  }, [])
-
-  // Initialize Donut Chart (Chart.js) with soft pastel clay colors
+  // Initialize Donut Chart (Chart.js with clean light fintech theme)
   useEffect(() => {
     const Chart = typeof window !== 'undefined' ? window.Chart : null
     if (!Chart || !chartCanvasRef.current) return
@@ -152,7 +90,6 @@ export function DashboardView({
     const ctx = chartCanvasRef.current.getContext('2d')
     if (!ctx) return
 
-    const otherCount = Math.max(0, residents.length - verifiedCount - pendingCount)
     const chartInstance = new Chart(ctx, {
       type: 'doughnut',
       data: {
@@ -160,11 +97,11 @@ export function DashboardView({
         datasets: [
           {
             data: [verifiedCount, pendingCount, otherCount],
-            backgroundColor: ['#16765b', '#f59e0b', '#94a3b8'],
-            hoverBackgroundColor: ['#1b8a6a', '#fbbf24', '#cbd5e1'],
+            backgroundColor: ['#16A36B', '#EBA12A', '#CBD5E1'],
+            hoverBackgroundColor: ['#087A59', '#D97706', '#94A3B8'],
             borderWidth: 0,
-            borderRadius: 8,
-            spacing: 5,
+            borderRadius: 6,
+            spacing: 3,
           },
         ],
       },
@@ -175,18 +112,17 @@ export function DashboardView({
         animation: {
           animateScale: true,
           animateRotate: true,
-          duration: 1000,
+          duration: 900,
           easing: 'easeOutQuart',
         },
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#09291f',
+            backgroundColor: '#172B25',
             titleFont: { family: "'Manrope Variable', sans-serif", weight: 'bold', size: 12 },
             bodyFont: { family: "'DM Sans Variable', sans-serif", size: 12 },
-            padding: 12,
-            cornerRadius: 12,
-            boxPadding: 4,
+            padding: 10,
+            cornerRadius: 10,
             callbacks: {
               label: (item) => ` ${item.label}: ${item.raw} orang`,
             },
@@ -198,184 +134,150 @@ export function DashboardView({
     return () => {
       chartInstance.destroy()
     }
-  }, [verifiedCount, pendingCount, residents.length])
+  }, [verifiedCount, pendingCount, otherCount])
 
   return (
     <div>
-      <PageHeader
-        title="Dashboard Utama"
-        description="Ringkasan pemrosesan SPK Bansos, progres verifikasi berkas warga, dan perangkingan SAW terkini."
-        actions={
-          <button
-            type="button"
-            className="clay-btn"
-            onClick={() => onNavigate('saw-calc')}
-            style={{
-              padding: '12px 24px',
-              fontSize: '13.5px',
-            }}
-          >
-            <span className="calc-icon-spin" style={{ display: 'inline-flex' }}>
-              <Calculator size={18} />
+      {/* ========================================================
+          1. DASHBOARD GREETING
+          ======================================================== */}
+      <section className="fintech-greeting-section" aria-label="Greeting Dashboard">
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <h1 className="fintech-greeting-title">
+              Selamat Datang, Admin
+            </h1>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                borderRadius: '9999px',
+                backgroundColor: 'var(--fintech-soft-green)',
+                color: 'var(--fintech-primary)',
+                fontSize: '11px',
+                fontWeight: 700,
+              }}
+            >
+              <Sparkles size={12} />
+              <span>{activePeriod?.name || 'Periode Aktif'} • Aktif</span>
             </span>
-            <span>Jalankan Hitung SAW</span>
-          </button>
-        }
-      />
+          </div>
+          <p className="fintech-greeting-sub">
+            Kelola data warga, verifikasi calon penerima, dan pantau hasil perhitungan bantuan sosial.
+          </p>
+        </div>
 
-      {/* 4 Kartu Statistik Atas Bergaya 3D Claymorphism */}
-      <div
-        className="responsive-kpi-grid"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
-          gap: '20px',
-          marginBottom: '32px',
-        }}
-      >
+        <button
+          type="button"
+          className="fintech-primary-action-btn"
+          onClick={() => onNavigate('saw-calc')}
+          title="Buka modul kalkulasi SAW"
+        >
+          <Calculator size={16} />
+          <span>Jalankan Hitung SAW</span>
+        </button>
+      </section>
+
+      {/* ========================================================
+          2. KPI ANALYTICS CARDS (4 COMPACT FINTECH CARDS)
+          ======================================================== */}
+      <section className="fintech-kpi-grid" aria-label="KPI Statistik Utama">
         <KpiCard
-          clay
-          className="clay-card clay-anim-card"
           title="Total Data Warga"
           value={residents.length}
           subtitle="Tercatat di basis data lokal"
-          icon={<Users size={24} />}
-          iconBg="#dbeafe"
-          iconColor="#0284c7"
+          icon={<Users size={20} />}
+          iconBg="#E8F5EF"
+          iconColor="#087A59"
           badge="Database Lokal"
         />
         <KpiCard
-          clay
-          className="clay-card clay-anim-card"
           title="Calon Terverifikasi"
           value={verifiedCount}
           subtitle={`${pendingCount} berkas menunggu antrean`}
-          icon={<CheckCircle2 size={24} />}
-          iconBg="#dcfce7"
-          iconColor="#16a34a"
-          badge="Siap Hitung"
+          icon={<CheckCircle2 size={20} />}
+          iconBg="#E8F5EF"
+          iconColor="#16A36B"
+          badge="Siap Seleksi"
+          highlight
           pulseBadge
         />
         <KpiCard
-          clay
-          highlight
-          decorativeSvg
-          className="clay-card-dark clay-anim-card"
           title="Pagu Kuota Bantuan"
           value={quota}
-          subtitle={`Periode: ${activePeriod?.name || 'Aktif'}`}
-          icon={<Target size={24} />}
-          iconBg="rgba(181, 245, 106, 0.22)"
-          iconColor="var(--color-lime)"
-          badge="Tahap I 2026"
+          subtitle={`Sembako: ${activePeriod?.quotaBreakdown?.sembako ?? 1} · PKH: ${activePeriod?.quotaBreakdown?.pkh ?? 1} · PBI-JK: ${activePeriod?.quotaBreakdown?.pbijk ?? 1}`}
+          icon={<Target size={20} />}
+          iconBg="#FEF3C7"
+          iconColor="#EBA12A"
+          badge="3 Program"
         />
         <KpiCard
-          clay
-          className="clay-card clay-anim-card"
           title="Status Run SAW"
           value={calculationRun ? 'Siap' : 'Belum'}
           subtitle={calculationRun ? `${calculationRun.results.length} alternatif dihitung` : 'Jalankan kalkulasi'}
-          icon={<BarChart3 size={24} />}
-          iconBg="#f3e8ff"
-          iconColor="#9333ea"
+          icon={<BarChart3 size={20} />}
+          iconBg="#EFF6FF"
+          iconColor="#4386CF"
           badge={calculationRun?.status || 'IDLE'}
           pulseBadge={Boolean(calculationRun)}
         />
-      </div>
+      </section>
 
-      {/* Main Content Layout: SAW Rankings (Left) & Verification Donut Chart (Right) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
-          gap: '24px',
-          marginBottom: '32px',
-        }}
-      >
-        {/* Peringkat 5 Tertinggi Bergaya Claymorphism 3D */}
-        <div
-          className="clay-card clay-anim-card"
-          style={{
-            padding: 'clamp(16px, 3.5vw, 28px)',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {/* Header */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '22px',
-              flexWrap: 'wrap',
-              gap: '12px',
-            }}
-          >
+      {/* ========================================================
+          3. ANALYTICS CONTENT GRID
+             A. SAW Ranking (Left)
+             B. Verification Distribution & Quota (Right)
+          ======================================================== */}
+      <div className="fintech-analytics-grid">
+        {/* A. Peringkat Penerima Bantuan (SAW Ranking) */}
+        <section className="fintech-card" aria-label="Peringkat Penerima Bantuan">
+          <header className="fintech-card-header">
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h3
-                  style={{
-                    fontSize: '17px',
-                    fontWeight: '800',
-                    color: 'var(--color-green-950)',
-                    fontFamily: 'var(--font-heading)',
-                  }}
-                >
-                  Peringkat 5 Tertinggi (Hasil SAW)
-                </h3>
-                <span
-                  className="clay-badge"
-                  style={{
-                    backgroundColor: '#edf8f3',
-                    color: 'var(--color-green-700)',
-                    padding: '4px 12px',
-                    fontSize: '11px',
-                  }}
-                >
-                  Metode SAW
-                </span>
-              </div>
-              <p style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', marginTop: '3px' }}>
-                Nilai preferensi V dihitung murni dengan formula deterministik SAW.
+              <h2 className="fintech-card-title">Peringkat Penerima Bantuan</h2>
+              <p className="fintech-card-sub">
+                Hasil perhitungan nilai preferensi menggunakan metode SAW.
               </p>
             </div>
 
             <button
               type="button"
               onClick={() => onNavigate('saw-ranking')}
-              className="clay-badge"
-              style={{
-                backgroundColor: '#ffffff',
-                color: 'var(--color-green-700)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '12px',
-                padding: '6px 14px',
-              }}
+              className="fintech-link-btn"
+              title="Lihat semua hasil perankingan"
             >
               <span>Lihat Semua</span>
               <ArrowRight size={13} />
             </button>
-          </div>
+          </header>
 
-          {/* Ranking List */}
           {topRankings.length === 0 ? (
             <div
-              className="clay-item"
               style={{
-                padding: '30px',
+                padding: '36px 20px',
                 textAlign: 'center',
-                color: 'var(--color-text-muted)',
-                fontSize: '13.5px',
+                color: 'var(--fintech-text-secondary)',
+                fontSize: '13px',
+                background: '#FAFBFA',
+                borderRadius: '12px',
+                border: '1px dashed var(--fintech-border)',
+                margin: 'auto 0',
               }}
             >
-              Belum ada hasil kalkulasi SAW. Klik tombol &quot;Jalankan Hitung SAW&quot; di atas untuk memulai.
+              <p>Belum ada hasil kalkulasi SAW untuk periode ini.</p>
+              <button
+                type="button"
+                className="fintech-primary-action-btn"
+                onClick={() => onNavigate('saw-calc')}
+                style={{ marginTop: '14px', padding: '8px 16px', fontSize: '12.5px' }}
+              >
+                <Calculator size={14} />
+                <span>Jalankan Kalkulasi SAW</span>
+              </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1 }}>
+            <div className="fintech-ranking-list">
               {topRankings.map((row) => {
                 const cand = candidates.find((c) => c.id === row.candidateId)
                 const resident = residents.find((r) => r.id === cand?.residentId)
@@ -400,90 +302,51 @@ export function DashboardView({
                 const progressWidthPercent = Math.min(100, Math.max(0, valDecimal * 100)).toFixed(1)
 
                 return (
-                  <div
-                    key={row.candidateId}
-                    className="animate-ranking-item clay-item"
-                    style={{
-                      padding: '16px 20px',
-                      backgroundColor: '#ffffff',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                        {/* Bola Nomor Urut 3D Clay Marble */}
+                  <div key={row.candidateId} className="fintech-ranking-row">
+                    <div className="fintech-ranking-top">
+                      <div className="fintech-ranking-left">
+                        {/* Rank Badge */}
                         <div
-                          className="clay-marble"
-                          style={{
-                            width: '40px',
-                            height: '40px',
-                            background: isWithinQuota
-                              ? 'linear-gradient(135deg, #1b8a6a, #16765b)'
-                              : 'linear-gradient(135deg, #94a3b8, #64748b)',
-                            color: '#ffffff',
-                            fontWeight: '800',
-                            fontSize: '14px',
-                            fontFamily: 'monospace',
-                            boxShadow: isWithinQuota
-                              ? '4px 6px 14px rgba(22, 118, 91, 0.35), inset 3px 3px 6px rgba(255, 255, 255, 0.65), inset -3px -3px 6px rgba(0, 0, 0, 0.25)'
-                              : '4px 6px 14px rgba(100, 116, 139, 0.25), inset 3px 3px 6px rgba(255, 255, 255, 0.65), inset -3px -3px 6px rgba(0, 0, 0, 0.25)',
-                          }}
+                          className={`fintech-rank-badge ${
+                            row.rank <= 3 ? 'top-tier' : 'standard-tier'
+                          }`}
                         >
                           #{row.rank}
                         </div>
 
-                        <div>
-                          <div style={{ fontWeight: '800', fontSize: '14.5px', color: 'var(--color-green-950)' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div className="fintech-candidate-name">
                             {resident?.name || row.candidateId}
                           </div>
-                          <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                            NIK: <code>{resident?.nikMasked || '—'}</code> · RT/RW: {resident?.addressRtRw || '—'}
+                          <div className="fintech-candidate-meta">
+                            NIK: <code>{resident?.nikMasked || '—'}</code> • RT/RW: {resident?.addressRtRw || '—'}
                           </div>
                         </div>
                       </div>
 
-                      <div style={{ textAlign: 'right' }}>
-                        <div
-                          style={{
-                            fontSize: '15.5px',
-                            fontWeight: '800',
-                            fontFamily: 'monospace',
-                            color: isWithinQuota ? 'var(--color-green-700)' : 'var(--color-text-main)',
-                          }}
-                        >
+                      <div className="fintech-ranking-right">
+                        <div className="fintech-pref-value">
                           V = {formatExact(row.preference.exact, 4)}
                         </div>
                         <span
-                          className="clay-badge"
-                          style={{
-                            marginTop: '4px',
-                            fontSize: '11px',
-                            padding: '3px 10px',
-                            backgroundColor: isWithinQuota ? '#edf8f3' : '#fef8ee',
-                            color: isWithinQuota ? 'var(--color-green-700)' : 'var(--color-warning)',
-                          }}
+                          className={`fintech-status-tag ${
+                            isWithinQuota ? 'in-quota' : 'reserve'
+                          }`}
                         >
                           {isWithinQuota ? 'Dalam Kuota' : 'Cadangan'}
                         </span>
                       </div>
                     </div>
 
-                    {/* Progress Bar 3D Cekung (Sunken Track + Puffy Fill) */}
-                    <div
-                      className="clay-sunken"
-                      style={{
-                        marginTop: '14px',
-                        width: '100%',
-                        height: '10px',
-                      }}
-                    >
+                    {/* Progress Indicator */}
+                    <div className="fintech-progress-track">
                       <div
-                        className="progress-v-fill clay-progress-fill"
-                        data-width={`${progressWidthPercent}%`}
+                        className="fintech-progress-fill"
                         style={{
                           width: `${progressWidthPercent}%`,
                           background: isWithinQuota
-                            ? 'linear-gradient(90deg, #16765b 0%, #20b47c 65%, #b5f56a 100%)'
-                            : 'linear-gradient(90deg, #d97706 0%, #f59e0b 60%, #fde68a 100%)',
+                            ? 'linear-gradient(90deg, #087A59 0%, #16A37A 100%)'
+                            : 'linear-gradient(90deg, #D97706 0%, #F59E0B 100%)',
                         }}
                       />
                     </div>
@@ -492,195 +355,131 @@ export function DashboardView({
               })}
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Visualisasi Data: Donut Chart Status Verifikasi Bergaya 3D Clay */}
-        <div
-          className="clay-card clay-anim-card"
-          style={{
-            padding: 'clamp(16px, 3.5vw, 28px)',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {/* Header */}
-          <div style={{ marginBottom: '18px' }}>
-            <h3
-              style={{
-                fontSize: '17px',
-                fontWeight: '800',
-                color: 'var(--color-green-950)',
-                fontFamily: 'var(--font-heading)',
-              }}
-            >
-              Distribusi Status Verifikasi Warga
-            </h3>
-            <p style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', marginTop: '3px' }}>
-              Total {residents.length} warga tercatat dalam database sistem.
-            </p>
-          </div>
+        {/* B. Distribusi Status Verifikasi & Kuota */}
+        <section className="fintech-card" aria-label="Distribusi Status Verifikasi">
+          <header className="fintech-card-header">
+            <div>
+              <h2 className="fintech-card-title">Distribusi Status Verifikasi</h2>
+              <p className="fintech-card-sub">
+                Total {residents.length} warga tercatat dalam database sistem.
+              </p>
+            </div>
+          </header>
 
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, justifyContent: 'center' }}>
-            <div style={{ position: 'relative', width: '220px', height: '210px', margin: '4px 0 18px' }}>
+          <div className="fintech-chart-box">
+            {/* Donut Chart Canvas */}
+            <div className="fintech-donut-wrapper">
               <canvas ref={chartCanvasRef} />
-              {/* Central Floating 3D Clay Stat Bubble */}
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  pointerEvents: 'none',
-                }}
-              >
-                <div
-                  className="clay-bubble"
-                  style={{
-                    width: '96px',
-                    height: '96px',
-                    borderRadius: '50%',
-                    backgroundColor: '#ffffff',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <span
+              {/* Central Floating Summary Bubble */}
+              <div className="fintech-donut-center">
+                <span className="fintech-donut-number">{verifiedCount}</span>
+                <span className="fintech-donut-sub">Siap Seleksi</span>
+              </div>
+            </div>
+
+            {/* Compact Legend Row */}
+            <div className="fintech-chart-legend">
+              <div className="fintech-legend-row">
+                <div className="fintech-legend-left">
+                  <span className="fintech-legend-dot" style={{ backgroundColor: '#16A36B' }} />
+                  <span>Terverifikasi</span>
+                </div>
+                <span className="fintech-legend-count">
+                  {verifiedCount} warga ({verifiedPercent}%)
+                </span>
+              </div>
+
+              <div className="fintech-legend-row">
+                <div className="fintech-legend-left">
+                  <span className="fintech-legend-dot" style={{ backgroundColor: '#EBA12A' }} />
+                  <span>Menunggu Antrean</span>
+                </div>
+                <span className="fintech-legend-count">
+                  {pendingCount} calon ({pendingPercent}%)
+                </span>
+              </div>
+
+              <div className="fintech-legend-row">
+                <div className="fintech-legend-left">
+                  <span className="fintech-legend-dot" style={{ backgroundColor: '#CBD5E1' }} />
+                  <span>Warga Lainnya</span>
+                </div>
+                <span className="fintech-legend-count">
+                  {otherCount} warga ({otherPercent}%)
+                </span>
+              </div>
+            </div>
+
+            {/* Program Quota Mini Breakdown */}
+            <div className="fintech-program-breakdown" style={{ width: '100%', boxSizing: 'border-box' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--fintech-text-secondary)', letterSpacing: '0.4px' }}>
+                  Alokasi Kuota ({quota} Penerima)
+                </span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--fintech-primary)' }}>
+                  3 Program
+                </span>
+              </div>
+
+              <div className="fintech-program-row">
+                <div className="fintech-program-header">
+                  <span className="fintech-program-name">Bantuan Sembako (BPNT)</span>
+                  <span className="fintech-program-quota">{activePeriod?.quotaBreakdown?.sembako ?? 1} kuota</span>
+                </div>
+                <div className="fintech-progress-track" style={{ marginTop: '2px' }}>
+                  <div
+                    className="fintech-progress-fill"
+                    style={{ width: `${Math.min(100, ((activePeriod?.quotaBreakdown?.sembako ?? 1) / Math.max(1, quota)) * 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="fintech-program-row">
+                <div className="fintech-program-header">
+                  <span className="fintech-program-name">Program Keluarga Harapan (PKH)</span>
+                  <span className="fintech-program-quota">{activePeriod?.quotaBreakdown?.pkh ?? 1} kuota</span>
+                </div>
+                <div className="fintech-progress-track" style={{ marginTop: '2px' }}>
+                  <div
+                    className="fintech-progress-fill"
                     style={{
-                      fontSize: '30px',
-                      fontWeight: '800',
-                      fontFamily: 'var(--font-heading)',
-                      color: 'var(--color-green-950)',
-                      lineHeight: 1,
+                      width: `${Math.min(100, ((activePeriod?.quotaBreakdown?.pkh ?? 1) / Math.max(1, quota)) * 100)}%`,
+                      background: 'linear-gradient(90deg, #EBA12A 0%, #F59E0B 100%)',
                     }}
-                  >
-                    {verifiedCount}
-                  </span>
-                  <span
+                  />
+                </div>
+              </div>
+
+              <div className="fintech-program-row">
+                <div className="fintech-program-header">
+                  <span className="fintech-program-name">Bantuan PBI-JK (BPJS KIS)</span>
+                  <span className="fintech-program-quota">{activePeriod?.quotaBreakdown?.pbijk ?? 1} kuota</span>
+                </div>
+                <div className="fintech-progress-track" style={{ marginTop: '2px' }}>
+                  <div
+                    className="fintech-progress-fill"
                     style={{
-                      fontSize: '10px',
-                      fontWeight: '800',
-                      color: 'var(--color-green-700)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      marginTop: '3px',
+                      width: `${Math.min(100, ((activePeriod?.quotaBreakdown?.pbijk ?? 1) / Math.max(1, quota)) * 100)}%`,
+                      background: 'linear-gradient(90deg, #4386CF 0%, #60A5FA 100%)',
                     }}
-                  >
-                    Siap Seleksi
-                  </span>
+                  />
                 </div>
               </div>
             </div>
-
-            {/* Interactive 3D Clay Pill Legends */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', width: '100%' }}>
-              <div
-                className="clay-badge"
-                style={{
-                  backgroundColor: '#ffffff',
-                  fontSize: '12px',
-                  padding: '6px 14px',
-                }}
-              >
-                <span className="clay-marble" style={{ width: '10px', height: '10px', backgroundColor: '#16765b' }} />
-                <span style={{ color: 'var(--color-text-muted)' }}>Terverifikasi:</span>
-                <strong style={{ color: 'var(--color-green-950)' }}>{verifiedCount}</strong>
-              </div>
-
-              <div
-                className="clay-badge"
-                style={{
-                  backgroundColor: '#ffffff',
-                  fontSize: '12px',
-                  padding: '6px 14px',
-                }}
-              >
-                <span className="clay-marble" style={{ width: '10px', height: '10px', backgroundColor: '#f59e0b' }} />
-                <span style={{ color: 'var(--color-text-muted)' }}>Antrean:</span>
-                <strong style={{ color: 'var(--color-green-950)' }}>{pendingCount}</strong>
-              </div>
-
-              <div
-                className="clay-badge"
-                style={{
-                  backgroundColor: '#ffffff',
-                  fontSize: '12px',
-                  padding: '6px 14px',
-                }}
-              >
-                <span className="clay-marble" style={{ width: '10px', height: '10px', backgroundColor: '#94a3b8' }} />
-                <span style={{ color: 'var(--color-text-muted)' }}>Lainnya:</span>
-                <strong style={{ color: 'var(--color-green-950)' }}>
-                  {Math.max(0, residents.length - verifiedCount - pendingCount)}
-                </strong>
-              </div>
-            </div>
-
-            {/* Bottom 3D Clay Status Banner */}
-            <div
-              className="clay-item"
-              style={{
-                marginTop: '20px',
-                width: '100%',
-                padding: '12px 20px',
-                backgroundColor: '#edf8f3',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                fontSize: '12.5px',
-              }}
-            >
-              <span style={{ color: 'var(--color-text-muted)', fontWeight: '600' }}>Alokasi Pagu Bantuan:</span>
-              <span
-                className="clay-badge"
-                style={{
-                  backgroundColor: '#ffffff',
-                  fontWeight: '800',
-                  color: 'var(--color-green-900)',
-                  fontSize: '12px',
-                  padding: '4px 12px',
-                }}
-              >
-                {quota} Calon Terpilih
-              </span>
-            </div>
           </div>
-        </div>
+        </section>
       </div>
 
-      {/* Vertical Timeline: Aktivitas Audit Terbaru Bergaya 3D Clay */}
-      <div
-        className="clay-card clay-anim-card"
-        style={{
-          padding: 'clamp(16px, 3.5vw, 28px)',
-        }}
-      >
-        {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '24px',
-            flexWrap: 'wrap',
-            gap: '12px',
-          }}
-        >
+      {/* ========================================================
+          4. ADDITIONAL ANALYTICS: AKTIVITAS AUDIT TERBARU
+          ======================================================== */}
+      <section className="fintech-card" aria-label="Aktivitas Audit Terbaru">
+        <header className="fintech-card-header">
           <div>
-            <h3
-              style={{
-                fontSize: '17px',
-                fontWeight: '800',
-                color: 'var(--color-green-950)',
-                fontFamily: 'var(--font-heading)',
-              }}
-            >
-              Aktivitas Audit Terbaru
-            </h3>
-            <p style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', marginTop: '3px' }}>
+            <h2 className="fintech-card-title">Aktivitas Audit Terbaru</h2>
+            <p className="fintech-card-sub">
               Jejak aktivitas pencatatan sistem (append-only timeline dengan verifikasi aktor).
             </p>
           </div>
@@ -688,129 +487,64 @@ export function DashboardView({
           <button
             type="button"
             onClick={() => onNavigate('audit')}
-            className="clay-badge"
-            style={{
-              backgroundColor: '#ffffff',
-              color: 'var(--color-green-700)',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '12px',
-              padding: '6px 14px',
-            }}
+            className="fintech-link-btn"
+            title="Lihat seluruh riwayat audit"
           >
             <span>Log Lengkap</span>
             <ArrowRight size={13} />
           </button>
-        </div>
+        </header>
 
-        {/* Vertical Timeline */}
-        <div style={{ position: 'relative', paddingLeft: '34px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Continuous vertical timeline connector rail */}
-          <div
-            className="clay-sunken"
-            style={{
-              position: 'absolute',
-              left: '12px',
-              top: '16px',
-              bottom: '16px',
-              width: '6px',
-              zIndex: 0,
-            }}
-          />
-
+        <div className="fintech-audit-list">
           {auditLogs.slice(0, 4).map((log) => {
             const style = getTimelineStyle(log.action)
             const initials = getInitials(log.actorName)
 
             return (
-              <div
-                key={log.id}
-                className="animate-timeline-item clay-item"
-                style={{
-                  position: 'relative',
-                  padding: '16px 20px',
-                }}
-              >
-                {/* 3D Clay Marble Node on the timeline */}
-                <div
-                  className="clay-marble"
-                  style={{
-                    position: 'absolute',
-                    left: '-36px',
-                    top: '18px',
-                    width: '32px',
-                    height: '32px',
-                    background: style.bg,
-                    color: style.color,
-                    boxShadow: style.marbleShadow,
-                    zIndex: 2,
-                  }}
-                  aria-hidden="true"
-                >
-                  {style.icon}
-                </div>
-
-                {/* Content row */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontWeight: '800', fontSize: '14px', color: 'var(--color-green-950)' }}>
-                        {log.action}
-                      </span>
-                      <StatusBadge status={log.outcome} />
-                    </div>
-
-                    <div style={{ color: 'var(--color-text-muted)', fontSize: '12.5px', marginTop: '3px' }}>
-                      {log.requestSummary || `${log.targetType} (${log.targetId})`}
-                    </div>
-
-                    {/* Actor Initial Avatar & Name with 3D Bubble */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
-                      <div
-                        className="clay-bubble"
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '50%',
-                          backgroundColor: '#dcfce7',
-                          color: '#16765b',
-                          fontSize: '11px',
-                          fontWeight: '800',
-                          border: 'none',
-                        }}
-                        title={log.actorName}
-                      >
-                        {initials}
-                      </div>
-                      <span style={{ fontSize: '11.5px', color: 'var(--color-text-subtle)' }}>
-                        {log.actorName} · <span style={{ textTransform: 'capitalize' }}>{log.role?.toLowerCase() || 'petugas'}</span>
-                      </span>
-                    </div>
-                  </div>
-
+              <div key={log.id} className="fintech-audit-row">
+                <div className="fintech-audit-left">
                   <div
-                    className="clay-badge"
+                    className="fintech-audit-icon"
                     style={{
-                      backgroundColor: '#f6f8f7',
-                      fontSize: '11px',
-                      color: 'var(--color-text-subtle)',
-                      padding: '4px 12px',
+                      backgroundColor: style.bg,
+                      color: style.color,
                     }}
                   >
+                    {style.icon}
+                  </div>
+
+                  <div style={{ minWidth: 0 }}>
+                    <div className="fintech-audit-title">
+                      <span>{log.action}</span>
+                      <StatusBadge status={log.outcome} />
+                    </div>
+                    <div className="fintech-audit-desc">
+                      {log.requestSummary || `${log.targetType} (${log.targetId})`}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="fintech-audit-right">
+                  <div className="fintech-audit-actor">
+                    <div className="fintech-actor-avatar">{initials}</div>
+                    <span>
+                      {log.actorName} • <span style={{ textTransform: 'capitalize' }}>{log.role?.toLowerCase() || 'petugas'}</span>
+                    </span>
+                  </div>
+
+                  <span className="fintech-audit-date">
                     {new Date(log.occurredAt).toLocaleDateString('id-ID', {
                       day: 'numeric',
                       month: 'short',
                       year: 'numeric',
                     })}
-                  </div>
+                  </span>
                 </div>
               </div>
             )
           })}
         </div>
-      </div>
+      </section>
     </div>
   )
 }

@@ -1,13 +1,14 @@
-import { useEffect, useRef } from 'react'
-import { Check, Scale } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Check, Scale, Plus, CheckCircle2 } from 'lucide-react'
 import { PageHeader } from '../../components/common/PageHeader.jsx'
 import { Panel } from '../../components/common/Panel.jsx'
+import { Modal } from '../../components/common/Modal.jsx'
 import { SEED_CRITERIA_VERSION } from '../../../tests/fixtures/saw/golden.js'
 
-const SUBCRITERIA_MAP = [
+const INITIAL_SUBCRITERIA_MAP = [
   {
     code: 'C1',
-    name: 'Pendapatan per Bulan (Cost, W=0.30)',
+    name: 'Pendapatan per Bulan (Cost, W=0.25)',
     unit: 'Rupiah',
     rules: [
       { category: 'Pendapatan ≤ Rp 1.000.000', rawScore: '1.000.000', priorityImpact: 'Tertinggi (Prioritas Utama)' },
@@ -18,7 +19,7 @@ const SUBCRITERIA_MAP = [
   },
   {
     code: 'C2',
-    name: 'Jumlah Tanggungan Keluarga (Benefit, W=0.25)',
+    name: 'Jumlah Tanggungan Keluarga (Benefit, W=0.20)',
     unit: 'Orang',
     rules: [
       { category: 'Tanggungan ≥ 5 orang', rawScore: '5', priorityImpact: 'Sangat Tinggi' },
@@ -29,7 +30,7 @@ const SUBCRITERIA_MAP = [
   },
   {
     code: 'C3',
-    name: 'Kerentanan Kondisi Rumah (Benefit, W=0.20)',
+    name: 'Kerentanan Kondisi Rumah (Benefit, W=0.15)',
     unit: 'Skor 1–5',
     rules: [
       { category: 'Rumah Tidak Layak Huni Parah (Dinding bambu/lantai tanah)', rawScore: '5', priorityImpact: 'Sangat Rentan (Skor 5)' },
@@ -58,9 +59,35 @@ const SUBCRITERIA_MAP = [
       { category: 'Memiliki ≥ 2 unit aset produktif / kendaraan bermotor', rawScore: '3', priorityImpact: 'Prioritas Rendah (Skor 3)' },
     ],
   },
+  {
+    code: 'C6',
+    name: 'Tingkat Desil Kesejahteraan DTKS Kemensos (Cost, W=0.15)',
+    unit: 'Tingkat Desil 1–10',
+    rules: [
+      { category: 'Desil 1 — Rumah Tangga Sangat Miskin (10% Terbawah)', rawScore: '1', priorityImpact: 'Prioritas Paling Utama Bansos (Cost: skor min 1)' },
+      { category: 'Desil 2 — Rumah Tangga Miskin (11% - 20%)', rawScore: '2', priorityImpact: 'Prioritas Tinggi Bansos (Skor 2)' },
+      { category: 'Desil 3 — Rumah Tangga Hampir Miskin (21% - 30%)', rawScore: '3', priorityImpact: 'Prioritas Sedang (Skor 3)' },
+      { category: 'Desil 4 — Rumah Tangga Rentan Miskin (31% - 40%)', rawScore: '4', priorityImpact: 'Prioritas Cadangan / PBI-JK (Skor 4)' },
+      { category: 'Desil 5 — Rumah Tangga Menengah Bawah (41% - 50%)', rawScore: '5', priorityImpact: 'Non-Bansos Reguler (Skor 5)' },
+      { category: 'Desil 6 — Rumah Tangga Menengah (51% - 60%)', rawScore: '6', priorityImpact: 'Non-Bansos (Skor 6)' },
+      { category: 'Desil 7 — Rumah Tangga Menengah (61% - 70%)', rawScore: '7', priorityImpact: 'Non-Bansos (Skor 7)' },
+      { category: 'Desil 8 — Rumah Tangga Menengah Atas (71% - 80%)', rawScore: '8', priorityImpact: 'Non-Bansos (Skor 8)' },
+      { category: 'Desil 9 — Rumah Tangga Mampu (81% - 90%)', rawScore: '9', priorityImpact: 'Non-Bansos (Skor 9)' },
+      { category: 'Desil 10 — Rumah Tangga Sangat Mampu (91% - 100% Teratas)', rawScore: '10', priorityImpact: 'Non-Bansos (Skor 10)' },
+    ],
+  },
 ]
 
 export function SubcriteriaView() {
+  const [subcriteriaMap, setSubcriteriaMap] = useState(INITIAL_SUBCRITERIA_MAP)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [targetCode, setTargetCode] = useState('C1')
+  const [categoryInput, setCategoryInput] = useState('')
+  const [scoreInput, setScoreInput] = useState('')
+  const [impactInput, setImpactInput] = useState('')
+  const [formError, setFormError] = useState('')
+  const [toastMessage, setToastMessage] = useState('')
+
   const containerRef = useRef(null)
   const totalWeight = SEED_CRITERIA_VERSION.criteria.reduce((sum, c) => sum + Number(c.weight), 0)
 
@@ -76,15 +103,78 @@ export function SubcriteriaView() {
         easing: 'easeOutBack',
       })
     }
-  }, [])
+  }, [subcriteriaMap])
+
+  function handleAddRule(e) {
+    e.preventDefault()
+    if (!categoryInput.trim() || !scoreInput.trim()) {
+      setFormError('Kategori lapangan dan skor angka wajib diisi.')
+      return
+    }
+
+    const newRule = {
+      category: categoryInput.trim(),
+      rawScore: scoreInput.trim(),
+      priorityImpact: impactInput.trim() || 'Sesuai konfigurasi pengambil keputusan',
+    }
+
+    setSubcriteriaMap((prev) =>
+      prev.map((sub) =>
+        sub.code === targetCode
+          ? { ...sub, rules: [...sub.rules, newRule] }
+          : sub
+      )
+    )
+
+    setIsModalOpen(false)
+    setCategoryInput('')
+    setScoreInput('')
+    setImpactInput('')
+    setFormError('')
+    setToastMessage(`Aturan subkriteria baru berhasil ditambahkan untuk ${targetCode}!`)
+    setTimeout(() => setToastMessage(''), 4000)
+  }
 
   return (
     <div ref={containerRef}>
       <PageHeader
         featureNum={7}
-        title="Subkriteria & Bobot Penilaian"
-        description="Pemetaan kategori faktual ke skor angka matriks SAW, batas rentang inklusif, serta verifikasi total bobot tepat 1,00."
+        title="Subkriteria & Bobot Penilaian SAW"
+        description="Pemetaan kategori faktual lapangan ke skor angka matriks SAW (xᵢⱼ), termasuk integrasi Desil DTKS Kemensos."
+        actions={
+          <button
+            type="button"
+            className="clay-btn"
+            onClick={() => setIsModalOpen(true)}
+            style={{
+              padding: '11px 22px',
+              fontSize: '13px',
+            }}
+          >
+            <Plus size={16} />
+            <span>Tambah Subkriteria</span>
+          </button>
+        }
       />
+
+      {toastMessage && (
+        <div
+          className="clay-badge"
+          style={{
+            backgroundColor: '#edf8f3',
+            color: 'var(--color-green-700)',
+            padding: '10px 18px',
+            fontSize: '13px',
+            fontWeight: '700',
+            marginBottom: '20px',
+            width: '100%',
+            justifyContent: 'center',
+          }}
+        >
+          <CheckCircle2 size={16} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
 
       {/* Weight Summary Banner with Claymorphism */}
       <div
@@ -121,7 +211,7 @@ export function SubcriteriaView() {
               <span className="pulse-indicator" />
             </div>
             <p style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-              Prasyarat kalkulasi SAW: Σ wⱼ = 1,00 (100%).
+              Prasyarat mutlak SAW: Σ wⱼ = 1,00 (100%).
             </p>
           </div>
         </div>
@@ -155,9 +245,36 @@ export function SubcriteriaView() {
 
       {/* Subcriteria Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-        {SUBCRITERIA_MAP.map((sub) => (
+        {subcriteriaMap.map((sub) => (
           <div key={sub.code} className="subcrit-card">
-            <Panel title={`${sub.code} — ${sub.name}`} subtitle={`Satuan Nilai Faktual: ${sub.unit}`}>
+            <Panel
+              title={`${sub.code} — ${sub.name}`}
+              subtitle={`Satuan Nilai Faktual: ${sub.unit}`}
+              actions={
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetCode(sub.code)
+                    setIsModalOpen(true)
+                  }}
+                  className="clay-badge"
+                  style={{
+                    backgroundColor: '#ffffff',
+                    color: 'var(--color-green-700)',
+                    padding: '5px 12px',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <Plus size={13} />
+                  <span>Tambah Aturan {sub.code}</span>
+                </button>
+              }
+            >
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px', fontSize: '13px' }}>
                   <thead>
@@ -196,6 +313,105 @@ export function SubcriteriaView() {
           </div>
         ))}
       </div>
+
+      {/* Modal Tambah Subkriteria */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Tambah Aturan Subkriteria Baru">
+        {formError && (
+          <div
+            className="clay-badge"
+            style={{
+              backgroundColor: '#fee2e2',
+              color: '#dc2626',
+              padding: '10px 14px',
+              fontSize: '12.5px',
+              marginBottom: '16px',
+              width: '100%',
+              justifyContent: 'center',
+            }}
+          >
+            {formError}
+          </div>
+        )}
+
+        <form onSubmit={handleAddRule}>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
+              Pilih Kriteria Induk
+            </label>
+            <select
+              value={targetCode}
+              onChange={(e) => setTargetCode(e.target.value)}
+              style={{ width: '100%', padding: '10px 14px', fontSize: '13px' }}
+            >
+              {subcriteriaMap.map((s) => (
+                <option key={s.code} value={s.code}>
+                  {s.code} — {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
+              Nama Kategori Lapangan
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="Contoh: Pendapatan Rp 500.000 – Rp 800.000 / Rumah Semi Permanen"
+              value={categoryInput}
+              onChange={(e) => setCategoryInput(e.target.value)}
+              style={{ width: '100%' }}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '22px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
+                Skor Angka Matriks (xᵢⱼ)
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="Contoh: 1, 2, 5, atau 1000000"
+                value={scoreInput}
+                onChange={(e) => setScoreInput(e.target.value)}
+                style={{ width: '100%', fontFamily: 'monospace', fontWeight: '800' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
+                Pengaruh Terhadap Prioritas
+              </label>
+              <input
+                type="text"
+                placeholder="Contoh: Sangat Rentan / Prioritas Utama"
+                value={impactInput}
+                onChange={(e) => setImpactInput(e.target.value)}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="clay-badge"
+              style={{ padding: '9px 18px', backgroundColor: '#ffffff', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px' }}
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              className="clay-btn"
+              style={{ padding: '9px 22px', fontSize: '13px' }}
+            >
+              Simpan Aturan Subkriteria
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

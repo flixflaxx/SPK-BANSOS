@@ -9,11 +9,23 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = '560px' }) 
       }
     }
     if (isOpen) {
-      document.body.style.overflow = 'hidden'
+      document.body.classList.add('scroll-locked')
+      document.documentElement.classList.add('scroll-locked')
+      const mainScroll = document.querySelector('.fintech-main-scroll')
+      if (mainScroll) {
+        mainScroll.classList.add('scroll-locked')
+        mainScroll.style.overflow = 'hidden'
+      }
       window.addEventListener('keydown', handleKeyDown)
     }
     return () => {
-      document.body.style.overflow = ''
+      document.body.classList.remove('scroll-locked')
+      document.documentElement.classList.remove('scroll-locked')
+      const mainScroll = document.querySelector('.fintech-main-scroll')
+      if (mainScroll) {
+        mainScroll.classList.remove('scroll-locked')
+        mainScroll.style.overflow = ''
+      }
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [isOpen, onClose])
