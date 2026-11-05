@@ -237,6 +237,25 @@ export function RecommendationsView({ calculationRun, activePeriod, residents, c
                 <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div>
                     <StatusBadge status={item.status} />
+                    {item.status === 'RECOMMENDED' && (
+                      <div style={{ marginTop: '4px' }}>
+                        {item.rank === 1 && (
+                          <span className="clay-badge" style={{ backgroundColor: '#edf8f3', color: 'var(--color-green-700)', fontSize: '10.5px', padding: '2px 8px', fontWeight: '800' }}>
+                            Alokasi: Sembako (BPNT)
+                          </span>
+                        )}
+                        {item.rank === 2 && (
+                          <span className="clay-badge" style={{ backgroundColor: '#e0f2fe', color: '#0284c7', fontSize: '10.5px', padding: '2px 8px', fontWeight: '800' }}>
+                            Alokasi: PKH (Keluarga)
+                          </span>
+                        )}
+                        {item.rank >= 3 && (
+                          <span className="clay-badge" style={{ backgroundColor: '#f3e8ff', color: '#9333ea', fontSize: '10.5px', padding: '2px 8px', fontWeight: '800' }}>
+                            Alokasi: PBI-JK (BPJS KIS)
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <div style={{ fontSize: '11px', color: 'var(--color-text-subtle)', marginTop: '3px' }}>
                       Wajib Persetujuan Manusia
                     </div>

@@ -1,5 +1,6 @@
 @import '@fontsource-variable/manrope';
 @import '@fontsource-variable/dm-sans';
+@import './fintech-dashboard.css';
 
 :root {
   /* Brand Tokens - SYSTEM_DESIGN §2 */
@@ -810,3 +811,68 @@ textarea:focus {
     max-width: 95px !important;
   }
 }
+
+/* ==========================================================================
+   OFFICIAL SURAT RESMI & PRINT MEDIA STYLES
+   ========================================================================== */
+.official-letter-wrapper {
+  background: #ffffff;
+  color: #111827;
+}
+
+.official-stamp-circle {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 2px dashed rgba(22, 118, 91, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justifyContent: center;
+  text-align: center;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--color-green-800);
+  margin: 0 auto;
+  transform: rotate(-8deg);
+  background: rgba(237, 248, 243, 0.6);
+  pointer-events: none;
+}
+
+@media print {
+  /* Hide non-printable interface chrome during browser print */
+  .app-sidebar,
+  .app-topbar,
+  .demo-banner,
+  .page-header-actions,
+  .no-print,
+  button {
+    display: none !important;
+  }
+
+  body,
+  .app-main-content {
+    background-color: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .printable-report {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    border-radius: 0 !important;
+  }
+
+  /* Force backgrounds and border colors to print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+

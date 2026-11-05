@@ -8,8 +8,6 @@ export function AppShell({
   onViewChange,
   activePeriod,
   currentUser,
-  users,
-  onUserChange,
   onLogoutClick,
   children,
 }) {
@@ -32,16 +30,9 @@ export function AppShell({
   }, [isCollapsed])
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100vh',
-        backgroundColor: '#eaf4ef',
-      }}
-    >
+    <div className="fintech-shell-wrapper">
       <DemoBanner />
-      <div style={{ display: 'flex', flex: 1, position: 'relative' }}>
+      <div className="fintech-app-surface">
         <SidebarNav
           activeView={activeView}
           onViewChange={onViewChange}
@@ -50,20 +41,10 @@ export function AppShell({
           isCollapsed={isCollapsed}
           onToggleCollapse={() => setIsCollapsed((prev) => !prev)}
         />
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            minWidth: 0,
-            backgroundColor: '#eaf4ef',
-          }}
-        >
+        <div className="fintech-main-panel">
           <Topbar
             activePeriod={activePeriod}
             currentUser={currentUser}
-            users={users}
-            onUserChange={onUserChange}
             onSearchClick={() => onViewChange('search')}
             onLogoutClick={onLogoutClick}
             onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
@@ -71,15 +52,7 @@ export function AppShell({
           />
           <main
             key={activeView}
-            className="page-enter-content app-main-content"
-            style={{
-              flex: 1,
-              padding: '24px 32px',
-              maxWidth: '1440px',
-              width: '100%',
-              margin: '0 auto',
-              backgroundColor: '#eaf4ef',
-            }}
+            className="fintech-main-scroll page-enter-content app-main-content"
           >
             {children}
           </main>

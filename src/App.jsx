@@ -6,6 +6,7 @@ import { Toast } from './components/common/Toast.jsx'
 import { LoginView } from './features/auth/LoginView.jsx'
 import { DashboardView } from './features/dashboard/DashboardView.jsx'
 import { ResidentsView } from './features/residents/ResidentsView.jsx'
+import { DesilView } from './features/residents/DesilView.jsx'
 import { CandidatesView } from './features/candidates/CandidatesView.jsx'
 import { VerificationView } from './features/verification/VerificationView.jsx'
 import { CriteriaView } from './features/criteria/CriteriaView.jsx'
@@ -102,6 +103,30 @@ export function App() {
     showToast(`Warga ${newResident.name} berhasil ditambahkan.`, 'success')
   }
 
+  function handleUpdateResident(updatedResident) {
+    setResidents((prev) =>
+      prev.map((r) => (r.id === updatedResident.id ? { ...r, ...updatedResident } : r))
+    )
+    handleRecordAudit({
+      action: 'RESIDENT_UPDATED',
+      targetType: 'Resident',
+      targetId: updatedResident.id,
+      requestSummary: `Profil warga ${updatedResident.name} berhasil diperbarui`,
+    })
+    showToast(`Data profil warga ${updatedResident.name} berhasil diperbarui.`, 'success')
+  }
+
+  function handleUpdateResidentDesil(updatedResident) {
+    setResidents((prev) => prev.map((r) => (r.id === updatedResident.id ? updatedResident : r)))
+    handleRecordAudit({
+      action: 'RESIDENT_DESIL_UPDATED',
+      targetType: 'Resident',
+      targetId: updatedResident.id,
+      requestSummary: `Memperbarui klasifikasi desil ${updatedResident.name} menjadi ${updatedResident.desilLabel}`,
+    })
+    showToast(`Klasifikasi ${updatedResident.name} diperbarui ke ${updatedResident.desilLabel}.`, 'success')
+  }
+
   function handleRegisterCandidate(newCandidate) {
     setCandidates((prev) => [newCandidate, ...prev])
     const res = residents.find((r) => r.id === newCandidate.residentId)
@@ -154,30 +179,31 @@ export function App() {
     showToast(`Keputusan ${newDecision.outcome} berhasil dicatat.`, 'success')
   }
 
-  function handleUpdateQuota(newQuota) {
-    const updated = { ...activePeriod, quota: newQuota }
+  function handleUpdateQuota(payload) {
+    const isObj = typeof payload === 'object' && payload !== null
+    const newQuota = isObj ? payload.total : payload
+    const breakdown = isObj
+      ? payload.breakdown
+      : {
+          sembako: Math.ceil(newQuota / 2),
+          pkh: Math.floor(newQuota / 4),
+          pbijk: Math.max(0, newQuota - Math.ceil(newQuota / 2) - Math.floor(newQuota / 4)),
+        }
+    const updated = { ...activePeriod, quota: newQuota, quotaBreakdown: breakdown }
     setActivePeriod(updated)
     setPeriods((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
     handleRecordAudit({
       action: 'QUOTA_UPDATED',
       targetType: 'SelectionPeriod',
       targetId: activePeriod.id,
-      requestSummary: `Pagu kuota periode diperbarui menjadi ${newQuota} calon.`,
+      requestSummary: `Pagu kuota periode diperbarui menjadi ${newQuota} calon (Sembako: ${breakdown.sembako}, PKH: ${breakdown.pkh}, PBI-JK: ${breakdown.pbijk}).`,
     })
-    showToast(`Pagu kuota berhasil diperbarui menjadi ${newQuota} calon.`, 'success')
+    showToast(`Pagu kuota diperbarui: ${newQuota} calon (Sembako: ${breakdown.sembako}, PKH: ${breakdown.pkh}, PBI-JK: ${breakdown.pbijk}).`, 'success')
   }
 
   function handleTriggerBackup(newJob) {
     setBackupJobs((prev) => [newJob, ...prev])
     showToast('Snapshot backup berhasil dibuat dan diuji restore.', 'success')
-  }
-
-  function handleSwitchUser(userId) {
-    const target = DEMO_USERS.find((u) => u.id === userId)
-    if (target) {
-      setCurrentUser(target)
-      showToast(`Beralih peran: ${target.displayName}`, 'info')
-    }
   }
 
   if (!isLoggedIn) {
@@ -198,8 +224,6 @@ export function App() {
       onViewChange={setActiveView}
       activePeriod={activePeriod}
       currentUser={currentUser}
-      users={DEMO_USERS}
-      onUserChange={handleSwitchUser}
       onLogoutClick={() => {
         setIsLoggedIn(false)
         showToast('Anda telah keluar dari aplikasi.', 'info')
@@ -218,7 +242,18 @@ export function App() {
       )}
 
       {activeView === 'residents' && (
-        <ResidentsView residents={residents} onAddResident={handleAddResident} />
+        <ResidentsView
+          residents={residents}
+          onAddResident={handleAddResident}
+          onUpdateResident={handleUpdateResident}
+        />
+      )}
+
+      {activeView === 'desil' && (
+        <DesilView
+          residents={residents}
+          onUpdateResidentDesil={handleUpdateResidentDesil}
+        />
       )}
 
       {activeView === 'candidates' && (
@@ -324,6 +359,7 @@ export function App() {
 
       {activeView === 'quota' && (
         <QuotaView
+          key={activePeriod?.id}
           activePeriod={activePeriod}
           calculationRun={calculationRun}
           decisions={decisions}
