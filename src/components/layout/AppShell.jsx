@@ -14,9 +14,10 @@ export function AppShell({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
-      return localStorage.getItem('spk_sidebar_collapsed') === 'true'
+      const saved = localStorage.getItem('spk_sidebar_collapsed')
+      return saved === null ? true : saved === 'true'
     } catch {
-      return false
+      return true
     }
   })
 

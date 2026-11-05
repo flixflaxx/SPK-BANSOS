@@ -828,7 +828,7 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justifyContent: center;
+  justify-content: center;
   text-align: center;
   font-size: 8px;
   font-weight: 800;
