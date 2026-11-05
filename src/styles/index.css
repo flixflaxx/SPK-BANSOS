@@ -380,7 +380,7 @@ a:hover {
               inset -3px -3px 6px rgba(0, 0, 0, 0.08) !important;
   display: flex;
   align-items: center;
-  justifyContent: center;
+  justify-content: center;
   flex-shrink: 0;
   position: relative;
 }
@@ -394,7 +394,7 @@ a:hover {
               inset -3px -3px 6px rgba(0, 0, 0, 0.25) !important;
   display: flex;
   align-items: center;
-  justifyContent: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
