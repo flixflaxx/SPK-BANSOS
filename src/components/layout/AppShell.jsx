@@ -14,7 +14,7 @@ export function AppShell({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
-      const saved = localStorage.getItem('spk_sidebar_collapsed')
+      const saved = localStorage.getItem('spk_sidebar_collapsed_v2')
       return saved === null ? true : saved === 'true'
     } catch {
       return true
@@ -24,7 +24,7 @@ export function AppShell({
   // Sync isCollapsed ke localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('spk_sidebar_collapsed', String(isCollapsed))
+      localStorage.setItem('spk_sidebar_collapsed_v2', String(isCollapsed))
     } catch {
       // Ignore in private browsing
     }
