@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
   FolderOpen,
   Plus,
@@ -76,21 +77,11 @@ export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
     if (editingResident) {
       document.body.classList.add('scroll-locked')
       document.documentElement.classList.add('scroll-locked')
-      const mainScroll = document.querySelector('.fintech-main-scroll')
-      if (mainScroll) {
-        mainScroll.classList.add('scroll-locked')
-        mainScroll.style.overflow = 'hidden'
-      }
       window.addEventListener('keydown', handleKeyDown)
     }
     return () => {
       document.body.classList.remove('scroll-locked')
       document.documentElement.classList.remove('scroll-locked')
-      const mainScroll = document.querySelector('.fintech-main-scroll')
-      if (mainScroll) {
-        mainScroll.classList.remove('scroll-locked')
-        mainScroll.style.overflow = ''
-      }
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [editingResident])
@@ -637,259 +628,268 @@ export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
       {/* ========================================================
           POP-UP ALERT: LIHAT & EDIT PROFIL WARGA (SWEETALERT STYLE)
           ======================================================== */}
-      {editingResident && (
-        <div
-          className="fintech-alert-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="alert-popup-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !editSuccessAlert) {
-              setEditSuccessAlert(null)
-              setEditingResident(null)
-            }
-          }}
-          onWheel={(e) => e.stopPropagation()}
-        >
-          <div className="fintech-alert-popup">
-            {/* Tombol Tutup X di sudut */}
-            <button
-              type="button"
-              className="fintech-alert-close"
-              onClick={() => {
-                setEditSuccessAlert(null)
-                setEditingResident(null)
+      {editingResident &&
+        (() => {
+          const alertContent = (
+            <div
+              className="fintech-alert-overlay"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="alert-popup-title"
+              onClick={(e) => {
+                if (e.target === e.currentTarget && !editSuccessAlert) {
+                  setEditSuccessAlert(null)
+                  setEditingResident(null)
+                }
               }}
-              title="Tutup (Esc)"
-              aria-label="Tutup edit profil warga"
+              onWheel={(e) => e.stopPropagation()}
             >
-              <X size={16} />
-            </button>
-
-            {/* State 1: Alert Sukses (SweetAlert Success State) */}
-            {editSuccessAlert ? (
-              <div style={{ textAlign: 'center', padding: '16px 8px 10px' }}>
-                <div className="fintech-alert-icon-circle success">
-                  <CheckCircle2 size={36} strokeWidth={2.5} />
-                </div>
-                <h3
-                  id="alert-popup-title"
-                  className="fintech-alert-title"
-                  style={{ color: 'var(--fintech-success, #16A36B)' }}
-                >
-                  Berhasil Diperbarui!
-                </h3>
-                <p className="fintech-alert-subtitle" style={{ marginBottom: '24px' }}>
-                  {editSuccessAlert}
-                </p>
+              <div className="fintech-alert-popup">
+                {/* Tombol Tutup X di sudut */}
                 <button
                   type="button"
-                  className="fintech-alert-btn-confirm"
+                  className="fintech-alert-close"
                   onClick={() => {
                     setEditSuccessAlert(null)
                     setEditingResident(null)
                   }}
-                  style={{ minWidth: '130px', justifyContent: 'center', margin: '0 auto' }}
+                  title="Tutup (Esc)"
+                  aria-label="Tutup edit profil warga"
                 >
-                  Selesai
+                  <X size={16} />
                 </button>
-              </div>
-            ) : (
-              /* State 2: Pop-up Alert Form Edit Profil Warga */
-              <div>
-                {/* Alert Top Icon */}
-                <div className="fintech-alert-icon-circle">
-                  <UserCheck size={32} strokeWidth={2.2} />
-                </div>
 
-                <h3 id="alert-popup-title" className="fintech-alert-title">
-                  Edit Profil Warga
-                </h3>
-                <p className="fintech-alert-subtitle">
-                  Perbarui identitas kependudukan dan status klasifikasi DTKS
-                </p>
-
-                {/* Subtitle / NIK Badge */}
-                <div className="fintech-alert-badge-row">
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      padding: '4px 12px',
-                      borderRadius: '9999px',
-                      backgroundColor: '#F4F6F5',
-                      border: '1px solid #EDF0EE',
-                      fontSize: '11.5px',
-                      fontFamily: 'monospace',
-                      fontWeight: 700,
-                      color: 'var(--fintech-primary, #087A59)',
-                    }}
-                  >
-                    <ShieldCheck size={13} />
-                    NIK: {editingResident.nikMasked}
-                  </span>
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '4px 10px',
-                      borderRadius: '9999px',
-                      backgroundColor: getDesilMeta(editingResident.desil).bg,
-                      border: `1px solid ${getDesilMeta(editingResident.desil).border}`,
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      color: getDesilMeta(editingResident.desil).color,
-                    }}
-                  >
-                    {getDesilMeta(editingResident.desil).label}
-                  </span>
-                </div>
-
-                {/* Error Banner jika ada */}
-                {editFormError && (
-                  <div
-                    style={{
-                      padding: '10px 14px',
-                      borderRadius: '12px',
-                      backgroundColor: '#FEF2F2',
-                      border: '1px solid #FCA5A5',
-                      color: '#991B1B',
-                      fontSize: '12.5px',
-                      fontWeight: 600,
-                      marginBottom: '16px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    <AlertCircle size={16} />
-                    <span>{editFormError}</span>
-                  </div>
-                )}
-
-                {/* Form Input SweetAlert style */}
-                <form onSubmit={handleSaveEdit} className="fintech-alert-form">
-                  <div className="fintech-alert-field">
-                    <label htmlFor="edit-name" className="fintech-alert-label">
-                      Nama Lengkap Warga
-                    </label>
-                    <input
-                      id="edit-name"
-                      type="text"
-                      required
-                      value={editFormData.name}
-                      onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                      placeholder="Masukkan nama lengkap..."
-                      className="fintech-alert-input"
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div className="fintech-alert-field">
-                      <label htmlFor="edit-rtrw" className="fintech-alert-label">
-                        RT / RW
-                      </label>
-                      <input
-                        id="edit-rtrw"
-                        type="text"
-                        required
-                        value={editFormData.addressRtRw}
-                        onChange={(e) => setEditFormData({ ...editFormData, addressRtRw: e.target.value })}
-                        placeholder="Contoh: 001/003"
-                        className="fintech-alert-input"
-                      />
+                {/* State 1: Alert Sukses (SweetAlert Success State) */}
+                {editSuccessAlert ? (
+                  <div style={{ textAlign: 'center', padding: '16px 8px 10px' }}>
+                    <div className="fintech-alert-icon-circle success">
+                      <CheckCircle2 size={36} strokeWidth={2.5} />
                     </div>
-
-                    <div className="fintech-alert-field">
-                      <label htmlFor="edit-phone" className="fintech-alert-label">
-                        Nomor WhatsApp / HP
-                      </label>
-                      <input
-                        id="edit-phone"
-                        type="text"
-                        value={editFormData.phone}
-                        onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                        placeholder="0812-xxxx-xxxx"
-                        className="fintech-alert-input"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="fintech-alert-field">
-                    <label htmlFor="edit-street" className="fintech-alert-label">
-                      Alamat Jalan / Tempat Tinggal
-                    </label>
-                    <input
-                      id="edit-street"
-                      type="text"
-                      value={editFormData.addressStreet}
-                      onChange={(e) => setEditFormData({ ...editFormData, addressStreet: e.target.value })}
-                      placeholder="Contoh: Jl. Bulak Amah RT 01"
-                      className="fintech-alert-input"
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
-                    <div className="fintech-alert-field">
-                      <label htmlFor="edit-desil" className="fintech-alert-label">
-                        Tingkat Desil DTKS
-                      </label>
-                      <select
-                        id="edit-desil"
-                        value={editFormData.desil}
-                        onChange={(e) => setEditFormData({ ...editFormData, desil: Number(e.target.value) })}
-                        className="fintech-alert-input"
-                      >
-                        {DESIL_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="fintech-alert-field">
-                      <label htmlFor="edit-docs" className="fintech-alert-label">
-                        Jumlah Bukti Berkas
-                      </label>
-                      <input
-                        id="edit-docs"
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={editFormData.documentCount}
-                        onChange={(e) => setEditFormData({ ...editFormData, documentCount: Number(e.target.value) || 1 })}
-                        className="fintech-alert-input"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="fintech-alert-actions">
+                    <h3
+                      id="alert-popup-title"
+                      className="fintech-alert-title"
+                      style={{ color: 'var(--fintech-success, #16A36B)' }}
+                    >
+                      Berhasil Diperbarui!
+                    </h3>
+                    <p className="fintech-alert-subtitle" style={{ marginBottom: '24px' }}>
+                      {editSuccessAlert}
+                    </p>
                     <button
                       type="button"
-                      className="fintech-alert-btn-cancel"
+                      className="fintech-alert-btn-confirm"
                       onClick={() => {
                         setEditSuccessAlert(null)
                         setEditingResident(null)
                       }}
+                      style={{ minWidth: '130px', justifyContent: 'center', margin: '0 auto' }}
                     >
-                      Batal
-                    </button>
-                    <button
-                      type="submit"
-                      className="fintech-alert-btn-confirm"
-                    >
-                      <Check size={16} />
-                      <span>Simpan Perubahan</span>
+                      Selesai
                     </button>
                   </div>
-                </form>
+                ) : (
+                  /* State 2: Pop-up Alert Form Edit Profil Warga */
+                  <div>
+                    {/* Alert Top Icon */}
+                    <div className="fintech-alert-icon-circle">
+                      <UserCheck size={32} strokeWidth={2.2} />
+                    </div>
+
+                    <h3 id="alert-popup-title" className="fintech-alert-title">
+                      Edit Profil Warga
+                    </h3>
+                    <p className="fintech-alert-subtitle">
+                      Perbarui identitas kependudukan dan status klasifikasi DTKS
+                    </p>
+
+                    {/* Subtitle / NIK Badge */}
+                    <div className="fintech-alert-badge-row">
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '4px 12px',
+                          borderRadius: '9999px',
+                          backgroundColor: '#F4F6F5',
+                          border: '1px solid #EDF0EE',
+                          fontSize: '11.5px',
+                          fontFamily: 'monospace',
+                          fontWeight: 700,
+                          color: 'var(--fintech-primary, #087A59)',
+                        }}
+                      >
+                        <ShieldCheck size={13} />
+                        NIK: {editingResident.nikMasked}
+                      </span>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          padding: '4px 10px',
+                          borderRadius: '9999px',
+                          backgroundColor: getDesilMeta(editingResident.desil).bg,
+                          border: `1px solid ${getDesilMeta(editingResident.desil).border}`,
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: getDesilMeta(editingResident.desil).color,
+                        }}
+                      >
+                        {getDesilMeta(editingResident.desil).label}
+                      </span>
+                    </div>
+
+                    {/* Error Banner jika ada */}
+                    {editFormError && (
+                      <div
+                        style={{
+                          padding: '10px 14px',
+                          borderRadius: '12px',
+                          backgroundColor: '#FEF2F2',
+                          border: '1px solid #FCA5A5',
+                          color: '#991B1B',
+                          fontSize: '12.5px',
+                          fontWeight: 600,
+                          marginBottom: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                        }}
+                      >
+                        <AlertCircle size={16} />
+                        <span>{editFormError}</span>
+                      </div>
+                    )}
+
+                    {/* Form Input SweetAlert style */}
+                    <form onSubmit={handleSaveEdit} className="fintech-alert-form">
+                      <div className="fintech-alert-field">
+                        <label htmlFor="edit-name" className="fintech-alert-label">
+                          Nama Lengkap Warga
+                        </label>
+                        <input
+                          id="edit-name"
+                          type="text"
+                          required
+                          value={editFormData.name}
+                          onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                          placeholder="Masukkan nama lengkap..."
+                          className="fintech-alert-input"
+                          autoFocus
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div className="fintech-alert-field">
+                          <label htmlFor="edit-rtrw" className="fintech-alert-label">
+                            RT / RW
+                          </label>
+                          <input
+                            id="edit-rtrw"
+                            type="text"
+                            required
+                            value={editFormData.addressRtRw}
+                            onChange={(e) => setEditFormData({ ...editFormData, addressRtRw: e.target.value })}
+                            placeholder="Contoh: 001/003"
+                            className="fintech-alert-input"
+                          />
+                        </div>
+
+                        <div className="fintech-alert-field">
+                          <label htmlFor="edit-phone" className="fintech-alert-label">
+                            Nomor WhatsApp / HP
+                          </label>
+                          <input
+                            id="edit-phone"
+                            type="text"
+                            value={editFormData.phone}
+                            onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                            placeholder="0812-xxxx-xxxx"
+                            className="fintech-alert-input"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="fintech-alert-field">
+                        <label htmlFor="edit-street" className="fintech-alert-label">
+                          Alamat Jalan / Tempat Tinggal
+                        </label>
+                        <input
+                          id="edit-street"
+                          type="text"
+                          value={editFormData.addressStreet}
+                          onChange={(e) => setEditFormData({ ...editFormData, addressStreet: e.target.value })}
+                          placeholder="Contoh: Jl. Bulak Amah RT 01"
+                          className="fintech-alert-input"
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
+                        <div className="fintech-alert-field">
+                          <label htmlFor="edit-desil" className="fintech-alert-label">
+                            Tingkat Desil DTKS
+                          </label>
+                          <select
+                            id="edit-desil"
+                            value={editFormData.desil}
+                            onChange={(e) => setEditFormData({ ...editFormData, desil: Number(e.target.value) })}
+                            className="fintech-alert-input"
+                          >
+                            {DESIL_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="fintech-alert-field">
+                          <label htmlFor="edit-docs" className="fintech-alert-label">
+                            Jumlah Bukti Berkas
+                          </label>
+                          <input
+                            id="edit-docs"
+                            type="number"
+                            min={1}
+                            max={10}
+                            value={editFormData.documentCount}
+                            onChange={(e) => setEditFormData({ ...editFormData, documentCount: Number(e.target.value) || 1 })}
+                            className="fintech-alert-input"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="fintech-alert-actions">
+                        <button
+                          type="button"
+                          className="fintech-alert-btn-cancel"
+                          onClick={() => {
+                            setEditSuccessAlert(null)
+                            setEditingResident(null)
+                          }}
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="submit"
+                          className="fintech-alert-btn-confirm"
+                        >
+                          <Check size={16} />
+                          <span>Simpan Perubahan</span>
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
-      )}
+            </div>
+          )
+
+          if (typeof document !== 'undefined') {
+            return createPortal(alertContent, document.body)
+          }
+          return alertContent
+        })()}
     </div>
   )
 }

@@ -1202,16 +1202,26 @@ html.scroll-locked {
    POP-UP ALERT DIALOG (SWEETALERT / FINTECH ALERT STYLE)
    ======================================================== */
 .fintech-alert-overlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(15, 23, 42, 0.48);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1100;
-  padding: 16px;
+  position: fixed !important;
+  inset: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  width: 100dvw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  background-color: rgba(15, 23, 42, 0.58) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 999999 !important;
+  padding: 20px 16px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
   animation: fintechOverlayFade 0.18s ease-out;
   overscroll-behavior: contain;
 }
@@ -1224,10 +1234,13 @@ html.scroll-locked {
 .fintech-alert-popup {
   width: 100%;
   max-width: 480px;
+  max-height: min(90vh, 90dvh);
+  overflow-y: auto;
+  margin: auto !important;
   background-color: #FFFFFF;
   border-radius: 24px;
   border: 1px solid #EDF0EE;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.16), 0 6px 16px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22), 0 6px 16px rgba(0, 0, 0, 0.06);
   padding: 24px 24px 20px;
   position: relative;
   animation: fintechPopupBounce 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);

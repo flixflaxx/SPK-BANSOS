@@ -60,5 +60,20 @@ describe('ResidentsView Edit Profile Pop-up Modal Tests', () => {
     expect(html).toContain('Desil 5 — Rumah Tangga Menengah Bawah')
     expect(html).toContain('Desil 10 — Rumah Tangga Sangat Mampu')
   })
+
+  it('verifies fintech alert popup dialog CSS contains viewport fixed centering rules', () => {
+    const fs = require('fs')
+    const path = require('path')
+    const cssPath = path.resolve(__dirname, '../../src/styles/fintech-dashboard.css')
+    const cssContent = fs.readFileSync(cssPath, 'utf8')
+
+    expect(cssContent).toContain('.fintech-alert-overlay {')
+    expect(cssContent).toContain('position: fixed !important;')
+    expect(cssContent).toContain('z-index: 999999 !important;')
+    expect(cssContent).toContain('justify-content: center !important;')
+    expect(cssContent).toContain('align-items: center !important;')
+    expect(cssContent).toContain('.fintech-alert-popup {')
+    expect(cssContent).toContain('max-height: min(90vh, 90dvh);')
+  })
 })
 

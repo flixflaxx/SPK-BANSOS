@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 export function Modal({ isOpen, onClose, title, children, maxWidth = '560px' }) {
@@ -11,28 +12,18 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = '560px' }) 
     if (isOpen) {
       document.body.classList.add('scroll-locked')
       document.documentElement.classList.add('scroll-locked')
-      const mainScroll = document.querySelector('.fintech-main-scroll')
-      if (mainScroll) {
-        mainScroll.classList.add('scroll-locked')
-        mainScroll.style.overflow = 'hidden'
-      }
       window.addEventListener('keydown', handleKeyDown)
     }
     return () => {
       document.body.classList.remove('scroll-locked')
       document.documentElement.classList.remove('scroll-locked')
-      const mainScroll = document.querySelector('.fintech-main-scroll')
-      if (mainScroll) {
-        mainScroll.classList.remove('scroll-locked')
-        mainScroll.style.overflow = ''
-      }
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [isOpen, onClose])
 
   if (!isOpen) return null
 
-  return (
+  const modalNode = (
     <div
       role="dialog"
       aria-modal="true"
@@ -47,7 +38,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = '560px' }) 
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000,
+        zIndex: 999999,
         padding: '20px',
       }}
       onClick={(e) => {
@@ -114,4 +105,10 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = '560px' }) 
       </div>
     </div>
   )
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalNode, document.body)
+  }
+
+  return modalNode
 }
