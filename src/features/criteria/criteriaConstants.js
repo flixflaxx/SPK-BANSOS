@@ -58,3 +58,4 @@ export const DEFAULT_SUBCRITERIA_RULES = {
     { category: 'Desil 10 — Rumah Tangga Sangat Mampu (91% - 100% Teratas)', rawScore: '10', priorityImpact: 'Non-Bansos (Skor 10)' },
   ],
 }
+

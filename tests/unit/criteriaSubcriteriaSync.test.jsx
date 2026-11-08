@@ -97,3 +97,4 @@ describe('Criteria & Subcriteria Dynamic Synchronization', () => {
     expect(html).toContain('Belum ada aturan penilaian subkriteria')
   })
 })
+

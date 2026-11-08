@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Check, Scale, Plus, CheckCircle2, AlertTriangle, Trash2, ArrowRight } from 'lucide-react'
+import { Check, Scale, Plus, CheckCircle2, AlertTriangle, Trash2, ArrowRight, Sliders } from 'lucide-react'
 import { PageHeader } from '../../components/common/PageHeader.jsx'
 import { Panel } from '../../components/common/Panel.jsx'
 import { Modal } from '../../components/common/Modal.jsx'
@@ -10,6 +10,7 @@ export function SubcriteriaView({
   subcriteriaRules: propSubcriteriaRules,
   onAddRule,
   onDeleteRule,
+  onNavigate,
 }) {
   const criteria = Array.isArray(propCriteria) ? propCriteria : DEFAULT_CRITERIA
   const [internalRules, setInternalRules] = useState(DEFAULT_SUBCRITERIA_RULES)
@@ -27,7 +28,7 @@ export function SubcriteriaView({
   const containerRef = useRef(null)
 
   // Total weight calculated directly from active criteria
-  const totalWeight = criteria.reduce((sum, c) => sum + Number(c.weight), 0)
+  const totalWeight = criteria.reduce((sum, c) => sum + (Number(c.weight) || 0), 0)
   const isWeightValid = Math.abs(totalWeight - 1.0) < 0.001
 
   // Ensure targetCode is valid when criteria changes
@@ -103,24 +104,49 @@ export function SubcriteriaView({
       <PageHeader
         featureNum={7}
         title="Subkriteria & Bobot Penilaian SAW"
-        description="Pemetaan kategori faktual lapangan ke skor angka matriks SAW (xᵢⱼ). Subkriteria dan bobot secara otomatis mengikuti kriteria induk yang aktif."
+        description="Pemetaan kategori faktual lapangan ke skor angka matriks SAW (xᵢⱼ). Subkriteria dan bobot berikut selalu otomatis tersinkronisasi 100% dengan Kriteria."
         actions={
-          <button
-            type="button"
-            className="clay-btn"
-            onClick={() => {
-              setTargetCode(criteria[0]?.code || 'C1')
-              setFormError('')
-              setIsModalOpen(true)
-            }}
-            style={{
-              padding: '11px 22px',
-              fontSize: '13px',
-            }}
-          >
-            <Plus size={16} />
-            <span>Tambah Subkriteria</span>
-          </button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {onNavigate && (
+              <button
+                type="button"
+                className="clay-badge"
+                onClick={() => onNavigate('criteria')}
+                title="Buka halaman Kriteria Penilaian SAW untuk mengubah nama atau bobot"
+                style={{
+                  backgroundColor: '#ffffff',
+                  color: 'var(--color-green-800)',
+                  cursor: 'pointer',
+                  padding: '9px 16px',
+                  fontSize: '12.5px',
+                  fontWeight: '800',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  border: '1px solid rgba(22, 118, 91, 0.2)',
+                }}
+              >
+                <Sliders size={14} />
+                <span>Ubah Kriteria & Bobot</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className="clay-btn"
+              onClick={() => {
+                setTargetCode(criteria[0]?.code || 'C1')
+                setFormError('')
+                setIsModalOpen(true)
+              }}
+              style={{
+                padding: '11px 22px',
+                fontSize: '13px',
+              }}
+            >
+              <Plus size={16} />
+              <span>Tambah Subkriteria</span>
+            </button>
+          </div>
         }
       />
 
@@ -178,7 +204,7 @@ export function SubcriteriaView({
               <span className="pulse-indicator" />
             </div>
             <p style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-              Prasyarat mutlak SAW: Σ wⱼ = 1,00 (100%). Subkriteria dan bobot berikut selalu tersinkronisasi otomatis dengan menu Kriteria.
+              Prasyarat mutlak SAW: Σ wⱼ = 1,00 (100%). Seluruh subkriteria dan bobot di bawah ini selalu tersinkronisasi otomatis dengan menu Kriteria.
             </p>
           </div>
         </div>
@@ -223,38 +249,23 @@ export function SubcriteriaView({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
         {criteria.map((c) => {
           const rules = subcriteriaRules[c.code] || []
-          const pct = Math.round(Number(c.weight) * 100)
+          const numWeight = Number(c.weight) || 0
+          const pct = Math.round(numWeight * 100)
           const isCost = c.type === 'COST'
 
           return (
             <div key={c.code} className="subcrit-card">
               <Panel
-                title={
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: 'monospace', fontWeight: '800', color: 'var(--color-green-700)' }}>
-                      {c.code}
-                    </span>
-                    <span style={{ color: 'var(--color-green-950)', fontWeight: '800' }}>
-                      — {c.name}
-                    </span>
+                title={`${c.code} — ${c.name} (${c.type}, W=${c.weight})`}
+                subtitle={`Satuan Nilai Faktual: ${c.unit || 'Skor'} • Bobot Kriteria: W = ${c.weight} (${pct}%) • Terdiri dari ${rules.length} aturan penjenjangan`}
+                actions={
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <span
                       className="clay-badge"
                       style={{
                         fontSize: '11px',
                         fontWeight: '800',
-                        padding: '3px 9px',
-                        color: isCost ? 'var(--color-danger)' : 'var(--color-success)',
-                        backgroundColor: isCost ? 'var(--color-danger-bg)' : 'var(--color-success-bg)',
-                      }}
-                    >
-                      {isCost ? 'COST' : 'BENEFIT'}
-                    </span>
-                    <span
-                      className="clay-badge"
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: '800',
-                        padding: '3px 9px',
+                        padding: '4px 10px',
                         backgroundColor: '#edf8f3',
                         color: 'var(--color-green-950)',
                         fontFamily: 'monospace',
@@ -262,34 +273,31 @@ export function SubcriteriaView({
                     >
                       {`W = ${c.weight} (${pct}%)`}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetCode(c.code)
+                        setFormError('')
+                        setIsModalOpen(true)
+                      }}
+                      className="clay-badge"
+                      style={{
+                        backgroundColor: '#ffffff',
+                        color: 'var(--color-green-700)',
+                        padding: '5px 12px',
+                        fontSize: '12px',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        border: '1px solid #d1fae5',
+                      }}
+                    >
+                      <Plus size={13} />
+                      <span>Tambah Aturan {c.code}</span>
+                    </button>
                   </div>
-                }
-                subtitle={`Satuan Nilai Faktual: ${c.unit || 'Skor'} • Terdiri dari ${rules.length} aturan penjenjangan`}
-                actions={
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTargetCode(c.code)
-                      setFormError('')
-                      setIsModalOpen(true)
-                    }}
-                    className="clay-badge"
-                    style={{
-                      backgroundColor: '#ffffff',
-                      color: 'var(--color-green-700)',
-                      padding: '5px 12px',
-                      fontSize: '12px',
-                      fontWeight: '800',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      border: '1px solid #d1fae5',
-                    }}
-                  >
-                    <Plus size={13} />
-                    <span>Tambah Aturan {c.code}</span>
-                  </button>
                 }
               >
                 {rules.length === 0 ? (

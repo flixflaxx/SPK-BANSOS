@@ -246,6 +246,23 @@ export function App() {
   // Criteria & Subcriteria Handlers (Synchronized)
   function handleUpdateCriteria(updatedCriteria, reason = 'CRITERIA_UPDATED') {
     setCriteria(updatedCriteria)
+
+    // Automatically ensure all active criteria have subcriteria rules initialized
+    setSubcriteriaRules((prev) => {
+      const nextRules = { ...prev }
+      updatedCriteria.forEach((c) => {
+        if (!nextRules[c.code] || nextRules[c.code].length === 0) {
+          nextRules[c.code] = [
+            { category: `Kategori Sangat Tinggi (Level 4)`, rawScore: '4', priorityImpact: c.type === 'COST' ? 'Prioritas Rendah (Cost)' : 'Prioritas Tertinggi (Benefit)' },
+            { category: `Kategori Tinggi (Level 3)`, rawScore: '3', priorityImpact: c.type === 'COST' ? 'Prioritas Sedang' : 'Prioritas Tinggi' },
+            { category: `Kategori Sedang (Level 2)`, rawScore: '2', priorityImpact: c.type === 'COST' ? 'Prioritas Tinggi' : 'Prioritas Sedang' },
+            { category: `Kategori Rendah (Level 1)`, rawScore: '1', priorityImpact: c.type === 'COST' ? 'Prioritas Paling Utama (Cost: nilai kecil)' : 'Prioritas Rendah' },
+          ]
+        }
+      })
+      return nextRules
+    })
+
     handleRecordAudit({
       action: reason,
       targetType: 'Criteria',
@@ -369,8 +386,10 @@ export function App() {
       {activeView === 'criteria' && (
         <CriteriaView
           criteria={criteria}
+          subcriteriaRules={subcriteriaRules}
           onUpdateCriteria={handleUpdateCriteria}
           onResetCriteria={handleResetCriteria}
+          onNavigate={setActiveView}
         />
       )}
 
@@ -380,6 +399,7 @@ export function App() {
           subcriteriaRules={subcriteriaRules}
           onAddRule={handleAddSubcriteriaRule}
           onDeleteRule={handleDeleteSubcriteriaRule}
+          onNavigate={setActiveView}
         />
       )}
 

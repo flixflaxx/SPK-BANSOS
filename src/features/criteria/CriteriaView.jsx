@@ -10,18 +10,22 @@ import {
   Wand2,
   Pencil,
   RotateCcw,
+  ArrowRight,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { DataTable } from '../../components/common/DataTable.jsx'
 import { Modal } from '../../components/common/Modal.jsx'
 import { PageHeader } from '../../components/common/PageHeader.jsx'
 import { Panel } from '../../components/common/Panel.jsx'
-import { SEED_CRITERIA_VERSION } from '../../../tests/fixtures/saw/golden.js'
 import { DEFAULT_CRITERIA } from './criteriaConstants.js'
 
 export function CriteriaView({
   criteria: propCriteria,
+  subcriteriaRules = {},
   onUpdateCriteria,
   onResetCriteria,
+  onNavigate,
 }) {
   const [internalCriteria, setInternalCriteria] = useState(DEFAULT_CRITERIA)
   const isControlled = Array.isArray(propCriteria)
@@ -30,6 +34,8 @@ export function CriteriaView({
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formError, setFormError] = useState('')
   const [feedbackToast, setFeedbackToast] = useState('')
+  const [expandedCode, setExpandedCode] = useState(null)
+
   const [formData, setFormData] = useState({
     code: `C${criteria.length + 1}`,
     name: '',
@@ -50,7 +56,7 @@ export function CriteriaView({
 
   const containerRef = useRef(null)
 
-  const totalWeight = criteria.reduce((acc, c) => acc + Number(c.weight), 0)
+  const totalWeight = criteria.reduce((acc, c) => acc + (Number(c.weight) || 0), 0)
   const benefitCount = criteria.filter((c) => c.type === 'BENEFIT').length
   const costCount = criteria.filter((c) => c.type === 'COST').length
   const isWeightValid = Math.abs(totalWeight - 1.0) < 0.001
@@ -62,6 +68,14 @@ export function CriteriaView({
     if (!isControlled) {
       setInternalCriteria(newList)
     }
+  }
+
+  // Handle direct inline weight change right from the table row
+  function handleInlineWeightChange(code, newWeight) {
+    const updated = criteria.map((c) =>
+      c.code === code ? { ...c, weight: newWeight } : c
+    )
+    updateCriteriaList(updated, 'CRITERIA_WEIGHT_UPDATED')
   }
 
   useEffect(() => {
@@ -88,11 +102,11 @@ export function CriteriaView({
   const colorPalette = ['#09291f', '#16765b', '#1b8a6a', '#20b47c', '#89d46e', '#0284c7', '#9333ea', '#ea580c', '#f59e0b', '#ec4899']
 
   function handleAutoNormalize() {
-    const rawSum = criteria.reduce((sum, c) => sum + Number(c.weight), 0)
+    const rawSum = criteria.reduce((sum, c) => sum + (Number(c.weight) || 0), 0)
     if (rawSum === 0) return
 
     const normalized = criteria.map((c) => {
-      const share = Number(c.weight) / rawSum
+      const share = (Number(c.weight) || 0) / rawSum
       return {
         ...c,
         weight: (Math.round(share * 100) / 100).toFixed(2),
@@ -109,7 +123,7 @@ export function CriteriaView({
     }
 
     updateCriteriaList(normalized, 'CRITERIA_NORMALIZED')
-    setFeedbackToast('Bobot seluruh kriteria berhasil dinormalisasi otomatis menjadi 1.00 (100%). Subkriteria ikut diperbarui!')
+    setFeedbackToast('Bobot seluruh kriteria berhasil dinormalisasi otomatis menjadi 1.00 (100%). Halaman Subkriteria ikut diperbarui!')
     setTimeout(() => setFeedbackToast(''), 4000)
   }
 
@@ -154,7 +168,7 @@ export function CriteriaView({
       unit: 'skor',
     })
     setFormError('')
-    setFeedbackToast(`Kriteria ${code} berhasil ditambahkan! Subkriteria baru otomatis dibuat dan tersinkron.`)
+    setFeedbackToast(`Kriteria ${code} berhasil ditambahkan! Aturan subkriteria baru otomatis dibuat dan tersinkronisasi.`)
     setTimeout(() => setFeedbackToast(''), 4000)
   }
 
@@ -243,35 +257,91 @@ export function CriteriaView({
     },
     {
       key: 'name',
-      label: 'Nama Kriteria',
-      width: '30%',
-      render: (val, row) => (
-        <div>
-          <span style={{ fontWeight: '800', color: 'var(--color-green-950)' }}>
-            {val}
-          </span>
-          {row.code === 'C6' && (
-            <span
-              className="clay-badge"
-              style={{
-                marginLeft: '8px',
-                fontSize: '10px',
-                fontWeight: '800',
-                backgroundColor: '#e0f2fe',
-                color: '#0284c7',
-                padding: '2px 8px',
-              }}
-            >
-              DTKS Terintegrasi
-            </span>
-          )}
-        </div>
-      ),
+      label: 'Nama Kriteria & Subkriteria',
+      width: '32%',
+      render: (val, row) => {
+        const rules = subcriteriaRules[row.code] || []
+        const isExpanded = expandedCode === row.code
+        return (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: '800', color: 'var(--color-green-950)' }}>
+                {val}
+              </span>
+              {row.code === 'C6' && (
+                <span
+                  className="clay-badge"
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: '800',
+                    backgroundColor: '#e0f2fe',
+                    color: '#0284c7',
+                    padding: '2px 8px',
+                  }}
+                >
+                  DTKS Terintegrasi
+                </span>
+              )}
+            </div>
+            <div style={{ marginTop: '5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setExpandedCode(isExpanded ? null : row.code)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-green-700)',
+                  fontSize: '11.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                }}
+              >
+                {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                <span>{isExpanded ? 'Sembunyikan Aturan' : `Lihat ${rules.length} Aturan Subkriteria`}</span>
+              </button>
+            </div>
+
+            {/* Quick Expanded Subcriteria Preview */}
+            {isExpanded && (
+              <div
+                style={{
+                  marginTop: '10px',
+                  padding: '10px 14px',
+                  backgroundColor: '#edf8f3',
+                  borderRadius: '12px',
+                  fontSize: '11.5px',
+                  lineHeight: '1.6',
+                  color: 'var(--color-green-950)',
+                }}
+              >
+                <div style={{ fontWeight: '800', marginBottom: '4px', color: 'var(--color-green-800)' }}>
+                  Aturan Penjenjangan Subkriteria:
+                </div>
+                {rules.length === 0 ? (
+                  <span style={{ color: 'var(--color-text-muted)' }}>Belum ada aturan khusus.</span>
+                ) : (
+                  <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                    {rules.map((r, i) => (
+                      <li key={i}>
+                        <strong>{r.category}</strong> → Skor: <code>{r.rawScore}</code> ({r.priorityImpact})
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      },
     },
     {
       key: 'type',
       label: 'Tipe Atribut',
-      width: '16%',
+      width: '15%',
       render: (val) => (
         <span
           className="clay-badge"
@@ -290,27 +360,53 @@ export function CriteriaView({
     {
       key: 'weight',
       label: 'Bobot Preferensi (W)',
-      width: '20%',
-      render: (val) => {
-        const pct = Math.round(Number(val) * 100)
+      width: '23%',
+      render: (val, row) => {
+        const numVal = Number(val) || 0
+        const pct = Math.round(numVal * 100)
         return (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontWeight: '800', fontSize: '13px', color: 'var(--color-green-950)' }}>
-              <span>{val}</span>
-              <span>{pct}%</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                max="0.99"
+                value={val}
+                onChange={(e) => handleInlineWeightChange(row.code, e.target.value)}
+                style={{
+                  width: '74px',
+                  padding: '5px 8px',
+                  fontFamily: 'monospace',
+                  fontWeight: '800',
+                  fontSize: '13px',
+                  textAlign: 'center',
+                  borderRadius: '10px',
+                  border: '1.5px solid rgba(22, 118, 91, 0.25)',
+                  backgroundColor: '#ffffff',
+                  color: 'var(--color-green-950)',
+                }}
+                title={`Ketik langsung bobot baru untuk ${row.code} (Subkriteria langsung otomatis ikut berubah)`}
+              />
+              <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-green-700)', fontFamily: 'monospace' }}>
+                ({pct}%)
+              </span>
             </div>
-            <div className="clay-sunken" style={{ height: '7px', width: '100%', marginTop: '6px' }}>
-              <div className="clay-progress-fill" style={{ width: `${pct}%`, backgroundColor: 'var(--color-green-700)' }} />
+            <div className="clay-sunken" style={{ height: '6px', width: '100%' }}>
+              <div
+                className="clay-progress-fill"
+                style={{ width: `${Math.min(100, Math.max(0, pct))}%`, backgroundColor: 'var(--color-green-700)' }}
+              />
             </div>
           </div>
         )
       },
     },
-    { key: 'unit', label: 'Satuan Nilai', width: '12%' },
+    { key: 'unit', label: 'Satuan Nilai', width: '10%' },
     {
       key: 'actions',
       label: 'Aksi',
-      width: '12%',
+      width: '10%',
       render: (_, row) => (
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           <button
@@ -365,9 +461,32 @@ export function CriteriaView({
       <PageHeader
         featureNum={6}
         title="Manajemen Kriteria Penilaian SAW"
-        description="Pengaturan kriteria penilaian kelayakan bansos, bobot preferensi (W), dan atribut matematis SAW. Subkriteria dan bobot otomatis mengikuti konfigurasi di sini."
+        description="Pengaturan kriteria penilaian bansos, bobot preferensi (W), dan atribut matematis SAW. Kamu bisa ubah bobot langsung di tabel atau lewat tombol Edit — halaman Subkriteria & Bobot akan langsung otomatis ikut berubah!"
         actions={
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {onNavigate && (
+              <button
+                type="button"
+                className="clay-badge"
+                onClick={() => onNavigate('subcriteria')}
+                title="Buka halaman Subkriteria & Bobot untuk melihat pemetaan skor"
+                style={{
+                  backgroundColor: '#edf8f3',
+                  color: 'var(--color-green-700)',
+                  cursor: 'pointer',
+                  padding: '9px 16px',
+                  fontSize: '12.5px',
+                  fontWeight: '800',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  border: '1px solid #bfe5d3',
+                }}
+              >
+                <span>Lihat di Halaman Subkriteria</span>
+                <ArrowRight size={14} />
+              </button>
+            )}
             <button
               type="button"
               className="clay-badge"
@@ -487,10 +606,10 @@ export function CriteriaView({
             </div>
           </div>
           <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--color-green-950)', marginTop: '12px' }}>
-            Terkoneksi Otomatis
+            Terkoneksi Real-Time
           </div>
           <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px', display: 'block' }}>
-            Subkriteria mengikuti kriteria & bobot
+            Ubah bobot di tabel → Subkriteria langsung ikut berubah
           </span>
         </div>
       </div>
@@ -516,7 +635,7 @@ export function CriteriaView({
           }}
         >
           {criteria.map((c, idx) => {
-            const pct = Math.round((Number(c.weight) / (totalWeight || 1)) * 100)
+            const pct = Math.round(((Number(c.weight) || 0) / (totalWeight || 1)) * 100)
             const color = colorPalette[idx % colorPalette.length]
             return (
               <div
@@ -539,7 +658,7 @@ export function CriteriaView({
             <div key={c.code} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
               <div style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: colorPalette[idx % colorPalette.length] }} />
               <span style={{ fontWeight: '800', fontFamily: 'monospace' }}>{c.code}</span>
-              <span style={{ color: 'var(--color-text-muted)' }}>{c.name.split(' ')[0]} ({Math.round(Number(c.weight) * 100)}%)</span>
+              <span style={{ color: 'var(--color-text-muted)' }}>{c.name.split(' ')[0]} ({Math.round((Number(c.weight) || 0) * 100)}%)</span>
             </div>
           ))}
         </div>
@@ -547,7 +666,7 @@ export function CriteriaView({
 
       <Panel
         title={`Versi Kriteria Aktif (${criteria.length} Kriteria)`}
-        subtitle="Total bobot harus selalu tepat 1,00 (100%) untuk menjamin validitas SAW. Setiap perubahan langsung menyinkronkan subkriteria."
+        subtitle="Ubah angka bobot langsung di kolom tabel, atau gunakan tombol Edit/Normalisasi. Setiap perubahan akan langsung otomatis menyinkronkan Subkriteria & Bobot."
         actions={
           <button
             type="button"
