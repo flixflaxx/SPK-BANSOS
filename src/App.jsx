@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AppShell } from './components/layout/AppShell.jsx'
 import { Toast } from './components/common/Toast.jsx'
+import { DEFAULT_CRITERIA, DEFAULT_SUBCRITERIA_RULES } from './features/criteria/criteriaConstants.js'
 
 // Features
 import { LoginView } from './features/auth/LoginView.jsx'
@@ -64,6 +65,42 @@ export function App() {
   const [decisions, setDecisions] = useState([])
   const [auditLogs, setAuditLogs] = useState(DEMO_AUDIT_LOGS)
   const [backupJobs, setBackupJobs] = useState(DEMO_BACKUP_JOBS)
+
+  // Criteria & Subcriteria States (Single Source of Truth)
+  const [criteria, setCriteria] = useState(() => {
+    try {
+      const saved = localStorage.getItem('spk_criteria_list_v1')
+      return saved ? JSON.parse(saved) : DEFAULT_CRITERIA
+    } catch {
+      return DEFAULT_CRITERIA
+    }
+  })
+
+  const [subcriteriaRules, setSubcriteriaRules] = useState(() => {
+    try {
+      const saved = localStorage.getItem('spk_subcriteria_rules_v1')
+      return saved ? JSON.parse(saved) : DEFAULT_SUBCRITERIA_RULES
+    } catch {
+      return DEFAULT_SUBCRITERIA_RULES
+    }
+  })
+
+  // Persist Criteria & Subcriteria
+  useEffect(() => {
+    try {
+      localStorage.setItem('spk_criteria_list_v1', JSON.stringify(criteria))
+    } catch {
+      // Ignore in private browsing
+    }
+  }, [criteria])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('spk_subcriteria_rules_v1', JSON.stringify(subcriteriaRules))
+    } catch {
+      // Ignore in private browsing
+    }
+  }, [subcriteriaRules])
 
   // Toast feedback state
   const [toast, setToast] = useState(null)
@@ -206,6 +243,61 @@ export function App() {
     showToast('Snapshot backup berhasil dibuat dan diuji restore.', 'success')
   }
 
+  // Criteria & Subcriteria Handlers (Synchronized)
+  function handleUpdateCriteria(updatedCriteria, reason = 'CRITERIA_UPDATED') {
+    setCriteria(updatedCriteria)
+    handleRecordAudit({
+      action: reason,
+      targetType: 'Criteria',
+      targetId: 'criteria-active',
+      requestSummary: `Pembaruan konfigurasi kriteria penilaian SAW (${updatedCriteria.length} kriteria aktif)`,
+    })
+    showToast('Kriteria dan subkriteria berhasil disinkronkan.', 'success')
+  }
+
+  function handleResetCriteria() {
+    setCriteria(DEFAULT_CRITERIA)
+    setSubcriteriaRules(DEFAULT_SUBCRITERIA_RULES)
+    handleRecordAudit({
+      action: 'CRITERIA_RESET',
+      targetType: 'Criteria',
+      targetId: 'criteria-active',
+      requestSummary: 'Reset kriteria dan subkriteria ke konfigurasi awal standar',
+    })
+    showToast('Kriteria dan subkriteria berhasil direset ke standar awal.', 'info')
+  }
+
+  function handleAddSubcriteriaRule(criterionCode, newRule) {
+    setSubcriteriaRules((prev) => ({
+      ...prev,
+      [criterionCode]: [...(prev[criterionCode] || []), newRule],
+    }))
+    handleRecordAudit({
+      action: 'SUBCRITERIA_RULE_ADDED',
+      targetType: 'Subcriteria',
+      targetId: criterionCode,
+      requestSummary: `Menambahkan aturan subkriteria baru untuk ${criterionCode}: ${newRule.category}`,
+    })
+    showToast(`Aturan subkriteria baru untuk ${criterionCode} berhasil ditambahkan.`, 'success')
+  }
+
+  function handleDeleteSubcriteriaRule(criterionCode, ruleIndex) {
+    setSubcriteriaRules((prev) => {
+      const existing = prev[criterionCode] || []
+      return {
+        ...prev,
+        [criterionCode]: existing.filter((_, idx) => idx !== ruleIndex),
+      }
+    })
+    handleRecordAudit({
+      action: 'SUBCRITERIA_RULE_DELETED',
+      targetType: 'Subcriteria',
+      targetId: criterionCode,
+      requestSummary: `Menghapus aturan subkriteria pada ${criterionCode}`,
+    })
+    showToast(`Aturan subkriteria pada ${criterionCode} berhasil dihapus.`, 'info')
+  }
+
   if (!isLoggedIn) {
     return (
       <LoginView
@@ -274,9 +366,22 @@ export function App() {
         />
       )}
 
-      {activeView === 'criteria' && <CriteriaView />}
+      {activeView === 'criteria' && (
+        <CriteriaView
+          criteria={criteria}
+          onUpdateCriteria={handleUpdateCriteria}
+          onResetCriteria={handleResetCriteria}
+        />
+      )}
 
-      {activeView === 'subcriteria' && <SubcriteriaView />}
+      {activeView === 'subcriteria' && (
+        <SubcriteriaView
+          criteria={criteria}
+          subcriteriaRules={subcriteriaRules}
+          onAddRule={handleAddSubcriteriaRule}
+          onDeleteRule={handleDeleteSubcriteriaRule}
+        />
+      )}
 
       {activeView === 'periods' && (
         <PeriodsView

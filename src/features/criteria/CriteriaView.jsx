@@ -1,32 +1,52 @@
 import { useState, useEffect, useRef } from 'react'
-import { Scale, ListFilter, Sliders, CheckCircle2, Plus, AlertCircle, Trash2, Wand2 } from 'lucide-react'
+import {
+  Scale,
+  ListFilter,
+  Sliders,
+  CheckCircle2,
+  Plus,
+  AlertCircle,
+  Trash2,
+  Wand2,
+  Pencil,
+  RotateCcw,
+} from 'lucide-react'
 import { DataTable } from '../../components/common/DataTable.jsx'
 import { Modal } from '../../components/common/Modal.jsx'
 import { PageHeader } from '../../components/common/PageHeader.jsx'
 import { Panel } from '../../components/common/Panel.jsx'
 import { SEED_CRITERIA_VERSION } from '../../../tests/fixtures/saw/golden.js'
+import { DEFAULT_CRITERIA } from './criteriaConstants.js'
 
-const DEFAULT_CRITERIA = [
-  { code: 'C1', name: 'Pendapatan per bulan', type: 'COST', weight: '0.25', unit: 'Rupiah' },
-  { code: 'C2', name: 'Jumlah tanggungan', type: 'BENEFIT', weight: '0.20', unit: 'orang', scale: { min: 0 } },
-  { code: 'C3', name: 'Kerentanan kondisi rumah', type: 'BENEFIT', weight: '0.15', unit: 'skor', scale: { min: 1, max: 5 } },
-  { code: 'C4', name: 'Anggota keluarga rentan', type: 'BENEFIT', weight: '0.15', unit: 'skor', scale: { min: 0, max: 2 } },
-  { code: 'C5', name: 'Skor kepemilikan aset produktif', type: 'COST', weight: '0.10', unit: 'skor', scale: { min: 1, max: 3 } },
-  { code: 'C6', name: 'Tingkat Desil Kesejahteraan DTKS', type: 'COST', weight: '0.15', unit: 'Tingkat Desil (1-10)', scale: { min: 1, max: 10 } },
-]
+export function CriteriaView({
+  criteria: propCriteria,
+  onUpdateCriteria,
+  onResetCriteria,
+}) {
+  const [internalCriteria, setInternalCriteria] = useState(DEFAULT_CRITERIA)
+  const isControlled = Array.isArray(propCriteria)
+  const criteria = isControlled ? propCriteria : internalCriteria
 
-export function CriteriaView() {
-  const [criteria, setCriteria] = useState(DEFAULT_CRITERIA)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formError, setFormError] = useState('')
   const [feedbackToast, setFeedbackToast] = useState('')
   const [formData, setFormData] = useState({
-    code: `C${DEFAULT_CRITERIA.length + 1}`,
+    code: `C${criteria.length + 1}`,
     name: '',
     type: 'BENEFIT',
     weight: '0.10',
     unit: 'skor',
   })
+
+  // Edit Modal State
+  const [editingCriterion, setEditingCriterion] = useState(null)
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    type: 'BENEFIT',
+    weight: '0.10',
+    unit: 'skor',
+  })
+  const [editFormError, setEditFormError] = useState('')
 
   const containerRef = useRef(null)
 
@@ -34,6 +54,15 @@ export function CriteriaView() {
   const benefitCount = criteria.filter((c) => c.type === 'BENEFIT').length
   const costCount = criteria.filter((c) => c.type === 'COST').length
   const isWeightValid = Math.abs(totalWeight - 1.0) < 0.001
+
+  function updateCriteriaList(newList, reason = 'CRITERIA_UPDATED') {
+    if (onUpdateCriteria) {
+      onUpdateCriteria(newList, reason)
+    }
+    if (!isControlled) {
+      setInternalCriteria(newList)
+    }
+  }
 
   useEffect(() => {
     const anime = typeof window !== 'undefined' ? window.anime : null
@@ -56,7 +85,7 @@ export function CriteriaView() {
     }
   }, [criteria])
 
-  const colorPalette = ['#09291f', '#16765b', '#1b8a6a', '#20b47c', '#89d46e', '#0284c7', '#9333ea', '#ea580c']
+  const colorPalette = ['#09291f', '#16765b', '#1b8a6a', '#20b47c', '#89d46e', '#0284c7', '#9333ea', '#ea580c', '#f59e0b', '#ec4899']
 
   function handleAutoNormalize() {
     const rawSum = criteria.reduce((sum, c) => sum + Number(c.weight), 0)
@@ -79,8 +108,8 @@ export function CriteriaView() {
       normalized[lastIdx].weight = adj
     }
 
-    setCriteria(normalized)
-    setFeedbackToast('Bobot seluruh kriteria berhasil dinormalisasi otomatis menjadi 1.00 (100%).')
+    updateCriteriaList(normalized, 'CRITERIA_NORMALIZED')
+    setFeedbackToast('Bobot seluruh kriteria berhasil dinormalisasi otomatis menjadi 1.00 (100%). Subkriteria ikut diperbarui!')
     setTimeout(() => setFeedbackToast(''), 4000)
   }
 
@@ -115,7 +144,7 @@ export function CriteriaView() {
     }
 
     const updated = [...criteria, newCriterion]
-    setCriteria(updated)
+    updateCriteriaList(updated, 'CRITERIA_CREATED')
     setIsModalOpen(false)
     setFormData({
       code: `C${updated.length + 1}`,
@@ -125,7 +154,48 @@ export function CriteriaView() {
       unit: 'skor',
     })
     setFormError('')
-    setFeedbackToast(`Kriteria ${code} berhasil ditambahkan! Silakan periksa atau normalisasi total bobot.`)
+    setFeedbackToast(`Kriteria ${code} berhasil ditambahkan! Subkriteria baru otomatis dibuat dan tersinkron.`)
+    setTimeout(() => setFeedbackToast(''), 4000)
+  }
+
+  function handleOpenEdit(criterion) {
+    setEditingCriterion(criterion)
+    setEditFormData({
+      name: criterion.name,
+      type: criterion.type,
+      weight: criterion.weight,
+      unit: criterion.unit || '',
+    })
+    setEditFormError('')
+  }
+
+  function handleSaveEdit(e) {
+    e.preventDefault()
+    if (!editFormData.name.trim()) {
+      setEditFormError('Nama kriteria wajib diisi.')
+      return
+    }
+    const w = Number(editFormData.weight)
+    if (Number.isNaN(w) || w <= 0 || w >= 1) {
+      setEditFormError('Bobot harus berupa angka positif antara 0.01 dan 0.99.')
+      return
+    }
+
+    const updated = criteria.map((c) =>
+      c.code === editingCriterion.code
+        ? {
+            ...c,
+            name: editFormData.name.trim(),
+            type: editFormData.type,
+            weight: w.toFixed(2),
+            unit: editFormData.unit.trim() || 'skor',
+          }
+        : c
+    )
+
+    updateCriteriaList(updated, 'CRITERIA_UPDATED')
+    setEditingCriterion(null)
+    setFeedbackToast(`Kriteria ${editingCriterion.code} berhasil diperbarui. Subkriteria dan bobot otomatis tersinkron!`)
     setTimeout(() => setFeedbackToast(''), 4000)
   }
 
@@ -135,13 +205,17 @@ export function CriteriaView() {
       return
     }
     const updated = criteria.filter((c) => c.code !== code)
-    setCriteria(updated)
-    setFeedbackToast(`Kriteria ${code} berhasil dihapus.`)
+    updateCriteriaList(updated, 'CRITERIA_DELETED')
+    setFeedbackToast(`Kriteria ${code} berhasil dihapus dari daftar kriteria dan subkriteria.`)
     setTimeout(() => setFeedbackToast(''), 4000)
   }
 
   function handleResetSeed() {
-    setCriteria(DEFAULT_CRITERIA)
+    if (onResetCriteria) {
+      onResetCriteria()
+    } else {
+      updateCriteriaList(DEFAULT_CRITERIA, 'CRITERIA_RESET')
+    }
     setFeedbackToast('Konfigurasi kriteria dikembalikan ke standar awal.')
     setTimeout(() => setFeedbackToast(''), 4000)
   }
@@ -150,7 +224,7 @@ export function CriteriaView() {
     {
       key: 'code',
       label: 'Kode',
-      width: '12%',
+      width: '10%',
       render: (val) => (
         <span
           className="clay-badge"
@@ -170,7 +244,7 @@ export function CriteriaView() {
     {
       key: 'name',
       label: 'Nama Kriteria',
-      width: '28%',
+      width: '30%',
       render: (val, row) => (
         <div>
           <span style={{ fontWeight: '800', color: 'var(--color-green-950)' }}>
@@ -232,33 +306,56 @@ export function CriteriaView() {
         )
       },
     },
-    { key: 'unit', label: 'Satuan Nilai', width: '14%' },
+    { key: 'unit', label: 'Satuan Nilai', width: '12%' },
     {
       key: 'actions',
       label: 'Aksi',
-      width: '10%',
+      width: '12%',
       render: (_, row) => (
-        <button
-          type="button"
-          onClick={() => handleDeleteCriteria(row.code)}
-          title={`Hapus kriteria ${row.code}`}
-          className="clay-badge"
-          style={{
-            backgroundColor: '#ffffff',
-            color: '#dc2626',
-            cursor: 'pointer',
-            padding: '5px 10px',
-            fontSize: '11px',
-            fontWeight: '700',
-            border: '1px solid #fee2e2',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-          }}
-        >
-          <Trash2 size={12} />
-          <span>Hapus</span>
-        </button>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => handleOpenEdit(row)}
+            title={`Edit kriteria ${row.code}`}
+            className="clay-badge"
+            style={{
+              backgroundColor: '#ffffff',
+              color: 'var(--color-green-700)',
+              cursor: 'pointer',
+              padding: '5px 9px',
+              fontSize: '11px',
+              fontWeight: '700',
+              border: '1px solid #d1fae5',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <Pencil size={12} />
+            <span>Edit</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDeleteCriteria(row.code)}
+            title={`Hapus kriteria ${row.code}`}
+            className="clay-badge"
+            style={{
+              backgroundColor: '#ffffff',
+              color: '#dc2626',
+              cursor: 'pointer',
+              padding: '5px 9px',
+              fontSize: '11px',
+              fontWeight: '700',
+              border: '1px solid #fee2e2',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <Trash2 size={12} />
+            <span>Hapus</span>
+          </button>
+        </div>
       ),
     },
   ]
@@ -268,7 +365,7 @@ export function CriteriaView() {
       <PageHeader
         featureNum={6}
         title="Manajemen Kriteria Penilaian SAW"
-        description="Pengaturan kriteria penilaian kelayakan bansos, bobot preferensi (W), dan atribut matematis SAW."
+        description="Pengaturan kriteria penilaian kelayakan bansos, bobot preferensi (W), dan atribut matematis SAW. Subkriteria dan bobot otomatis mengikuti konfigurasi di sini."
         actions={
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <button
@@ -286,6 +383,7 @@ export function CriteriaView() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
+                border: '1px solid rgba(22, 118, 91, 0.2)',
               }}
             >
               <Wand2 size={15} style={{ color: 'var(--color-green-700)' }} />
@@ -302,10 +400,11 @@ export function CriteriaView() {
                   weight: '0.10',
                   unit: 'skor',
                 })
+                setFormError('')
                 setIsModalOpen(true)
               }}
               style={{
-                padding: '10px 22px',
+                padding: '11px 22px',
                 fontSize: '13px',
               }}
             >
@@ -335,225 +434,120 @@ export function CriteriaView() {
         </div>
       )}
 
-      {/* Top 3 Squircle Metric Cards with Claymorphism */}
+      {/* KPI Cards */}
       <div
-        className="responsive-kpi-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
           gap: '18px',
-          marginBottom: '26px',
+          marginBottom: '24px',
         }}
       >
-        <div
-          className="crit-stat-card clay-card"
-          style={{
-            padding: '22px 24px',
-            borderRadius: '24px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-              TOTAL KRITERIA AKTIF
-            </div>
-            <div style={{ fontSize: '30px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--color-green-950)', marginTop: '6px', lineHeight: 1.1 }}>
-              {criteria.length} <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-text-muted)' }}>Parameter</span>
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-subtle)', marginTop: '4px' }}>
-              Termasuk C6: Desil DTKS
+        <div className="clay-card crit-stat-card" style={{ padding: '20px', borderRadius: '22px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+              Total Kriteria Aktif
+            </span>
+            <div className="clay-bubble" style={{ width: '36px', height: '36px', borderRadius: '12px', color: 'var(--color-green-700)', backgroundColor: '#edf8f3' }}>
+              <ListFilter size={18} />
             </div>
           </div>
-          <div
-            className="clay-bubble"
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '16px',
-              backgroundColor: '#e0f2fe',
-              color: '#0284c7',
-            }}
-          >
-            <ListFilter size={22} />
+          <div style={{ fontSize: '32px', fontWeight: '800', fontFamily: 'monospace', color: 'var(--color-green-950)', marginTop: '8px' }}>
+            {criteria.length}
           </div>
+          <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+            {benefitCount} Benefit • {costCount} Cost
+          </span>
         </div>
 
-        <div
-          className="crit-stat-card clay-card"
-          style={{
-            padding: '22px 24px',
-            borderRadius: '24px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-          }}
-        >
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                TOTAL AKUMULASI BOBOT
-              </span>
-              <span className="pulse-indicator" />
-            </div>
-            <div
-              style={{
-                fontSize: '30px',
-                fontWeight: '800',
-                fontFamily: 'var(--font-heading)',
-                color: isWeightValid ? 'var(--color-green-700)' : 'var(--color-danger)',
-                marginTop: '6px',
-                lineHeight: 1.1,
-              }}
-            >
-              {totalWeight.toFixed(2)}{' '}
-              <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--color-text-muted)' }}>/ 1.00</span>
-            </div>
-            <div style={{ fontSize: '12px', color: isWeightValid ? 'var(--color-green-700)' : 'var(--color-danger)', marginTop: '4px', fontWeight: '700' }}>
-              {isWeightValid ? 'Tepat 100% (Matematis Valid)' : `Penyimpangan: ${(totalWeight * 100).toFixed(0)}% (Harus 100%)`}
+        <div className="clay-card crit-stat-card" style={{ padding: '20px', borderRadius: '22px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+              Total Bobot (Σ Wⱼ)
+            </span>
+            <div className="clay-bubble" style={{ width: '36px', height: '36px', borderRadius: '12px', color: isWeightValid ? 'var(--color-green-700)' : '#dc2626', backgroundColor: isWeightValid ? '#edf8f3' : '#fee2e2' }}>
+              <Scale size={18} />
             </div>
           </div>
-          <div
-            className="clay-bubble"
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '16px',
-              backgroundColor: isWeightValid ? '#edf8f3' : '#fee2e2',
-              color: isWeightValid ? 'var(--color-green-700)' : '#dc2626',
-            }}
-          >
-            <Scale size={22} />
+          <div style={{ fontSize: '32px', fontWeight: '800', fontFamily: 'monospace', color: isWeightValid ? 'var(--color-green-700)' : '#dc2626', marginTop: '8px' }}>
+            {totalWeight.toFixed(2)}
           </div>
+          <span className="clay-badge" style={{ fontSize: '11px', fontWeight: '800', padding: '3px 8px', marginTop: '4px', display: 'inline-flex', backgroundColor: isWeightValid ? '#edf8f3' : '#fee2e2', color: isWeightValid ? 'var(--color-green-700)' : '#dc2626' }}>
+            {isWeightValid ? 'Tepat 1.00 (Valid)' : `Selisih: ${(1.0 - totalWeight).toFixed(2)}`}
+          </span>
         </div>
 
-        <div
-          className="crit-stat-card clay-card"
-          style={{
-            padding: '22px 24px',
-            borderRadius: '24px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-              KOMPOSISI ATRIBUT
-            </div>
-            <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--color-green-950)', marginTop: '8px', lineHeight: 1.1 }}>
-              {benefitCount} Benefit : {costCount} Cost
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-subtle)', marginTop: '4px' }}>
-              Keseimbangan parameter bantuan
+        <div className="clay-card crit-stat-card" style={{ padding: '20px', borderRadius: '22px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+              Sinkronisasi Subkriteria
+            </span>
+            <div className="clay-bubble" style={{ width: '36px', height: '36px', borderRadius: '12px', color: 'var(--color-green-700)', backgroundColor: '#edf8f3' }}>
+              <Sliders size={18} />
             </div>
           </div>
-          <div
-            className="clay-bubble"
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '16px',
-              backgroundColor: '#fef3c7',
-              color: 'var(--color-warning)',
-            }}
-          >
-            <Sliders size={22} />
+          <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--color-green-950)', marginTop: '12px' }}>
+            Terkoneksi Otomatis
           </div>
+          <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px', display: 'block' }}>
+            Subkriteria mengikuti kriteria & bobot
+          </span>
         </div>
       </div>
 
-      {/* Visual Weight Distribution Stacked Bar with Claymorphism */}
-      <div
-        className="clay-card"
-        style={{
-          padding: '22px 26px',
-          borderRadius: '24px',
-          marginBottom: '26px',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-          <div>
-            <span style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--color-green-950)' }}>
-              Distribusi Proporsi Bobot Kriteria ({Math.round(totalWeight * 100)}%)
-            </span>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-              Representasi visual kontribusi masing-masing kriteria terhadap nilai preferensi akhir (V)
-            </div>
-          </div>
-          <div
-            className="clay-badge"
-            style={{
-              backgroundColor: isWeightValid ? '#edf8f3' : '#fee2e2',
-              color: isWeightValid ? 'var(--color-green-700)' : '#dc2626',
-              padding: '5px 12px',
-              fontSize: '12px',
-            }}
-          >
-            {isWeightValid ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
-            <span>Σ W = {totalWeight.toFixed(2)}</span>
-          </div>
+      {/* Segmented Distribution Bar */}
+      <div className="clay-card" style={{ padding: '20px 24px', borderRadius: '22px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--color-green-950)' }}>
+            Distribusi Bobot Preferensi Antar Kriteria
+          </span>
+          <span style={{ fontSize: '12px', fontWeight: '800', fontFamily: 'monospace', color: 'var(--color-green-700)' }}>
+            {(totalWeight * 100).toFixed(0)}% dari 100%
+          </span>
         </div>
-
-        {/* 3D Sunken Stacked Bar */}
         <div
           className="clay-sunken"
           style={{
             height: '14px',
             width: '100%',
             display: 'flex',
+            overflow: 'hidden',
+            padding: '2px',
           }}
         >
-          {criteria.map((c, i) => {
-            const pct = Math.max(1, (Number(c.weight) / (totalWeight || 1)) * 100)
+          {criteria.map((c, idx) => {
+            const pct = Math.round((Number(c.weight) / (totalWeight || 1)) * 100)
+            const color = colorPalette[idx % colorPalette.length]
             return (
               <div
                 key={c.code}
                 className="weight-bar-segment"
                 data-width={`${pct}%`}
+                title={`${c.code} (${c.name}): ${c.weight} (${pct}%)`}
                 style={{
                   height: '100%',
-                  width: `${pct}%`,
-                  backgroundColor: colorPalette[i % colorPalette.length],
-                  borderRight: i < criteria.length - 1 ? '1.5px solid #fff' : 'none',
+                  backgroundColor: color,
+                  borderRadius: '4px',
+                  marginRight: '2px',
                 }}
-                title={`${c.code} (${c.name}): ${Number(c.weight) * 100}%`}
               />
             )
           })}
         </div>
-
-        {/* Legend */}
-        <div style={{ display: 'flex', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
-          {criteria.map((c, i) => (
-            <div
-              key={c.code}
-              className="clay-badge"
-              style={{
-                backgroundColor: '#ffffff',
-                fontSize: '12px',
-                padding: '5px 12px',
-              }}
-            >
-              <span
-                className="clay-marble"
-                style={{
-                  width: '10px',
-                  height: '10px',
-                  backgroundColor: colorPalette[i % colorPalette.length],
-                }}
-              />
-              <span style={{ fontWeight: '800', color: 'var(--color-green-950)' }}>{c.code}</span>
-              <span style={{ color: 'var(--color-text-muted)' }}>({Math.round(Number(c.weight) * 100)}%)</span>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '14px' }}>
+          {criteria.map((c, idx) => (
+            <div key={c.code} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+              <div style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: colorPalette[idx % colorPalette.length] }} />
+              <span style={{ fontWeight: '800', fontFamily: 'monospace' }}>{c.code}</span>
+              <span style={{ color: 'var(--color-text-muted)' }}>{c.name.split(' ')[0]} ({Math.round(Number(c.weight) * 100)}%)</span>
             </div>
           ))}
         </div>
       </div>
 
       <Panel
-        title={`Versi Kriteria Aktif: ${SEED_CRITERIA_VERSION.label}`}
-        subtitle="Total bobot harus selalu tepat 1,00 (100%) untuk menjamin validitas SAW."
+        title={`Versi Kriteria Aktif (${criteria.length} Kriteria)`}
+        subtitle="Total bobot harus selalu tepat 1,00 (100%) untuk menjamin validitas SAW. Setiap perubahan langsung menyinkronkan subkriteria."
         actions={
           <button
             type="button"
@@ -565,14 +559,136 @@ export function CriteriaView() {
               cursor: 'pointer',
               padding: '6px 14px',
               fontSize: '11.5px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
             }}
           >
-            Reset Standar
+            <RotateCcw size={12} />
+            <span>Reset Standar</span>
           </button>
         }
       >
         <DataTable columns={columns} data={criteria} />
       </Panel>
+
+      {/* Modal Edit Kriteria */}
+      {editingCriterion && (
+        <Modal
+          isOpen={true}
+          onClose={() => setEditingCriterion(null)}
+          title={`Edit Kriteria ${editingCriterion.code}`}
+        >
+          {editFormError && (
+            <div
+              className="clay-badge"
+              style={{
+                backgroundColor: '#fee2e2',
+                color: '#dc2626',
+                padding: '10px 14px',
+                fontSize: '12.5px',
+                marginBottom: '16px',
+                width: '100%',
+                justifyContent: 'center',
+              }}
+            >
+              {editFormError}
+            </div>
+          )}
+
+          <form onSubmit={handleSaveEdit}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
+                  Kode Kriteria (Permanen)
+                </label>
+                <input
+                  type="text"
+                  disabled
+                  value={editingCriterion.code}
+                  style={{ width: '100%', fontFamily: 'monospace', fontWeight: '800', backgroundColor: '#f1f5f3', cursor: 'not-allowed' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
+                  Tipe Atribut
+                </label>
+                <select
+                  value={editFormData.type}
+                  onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })}
+                  style={{ width: '100%', padding: '10px 14px', fontSize: '13px' }}
+                >
+                  <option value="BENEFIT">BENEFIT — Semakin tinggi nilai, semakin diprioritaskan</option>
+                  <option value="COST">COST — Semakin rendah nilai, semakin diprioritaskan</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
+                Nama Kriteria
+              </label>
+              <input
+                type="text"
+                required
+                value={editFormData.name}
+                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '22px' }}>
+              <div>
+                <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
+                  <span>Bobot Preferensi (W)</span>
+                  <span style={{ color: 'var(--color-green-700)', fontFamily: 'monospace' }}>
+                    {Math.round((Number(editFormData.weight) || 0) * 100)}%
+                  </span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max="0.99"
+                  required
+                  value={editFormData.weight}
+                  onChange={(e) => setEditFormData({ ...editFormData, weight: e.target.value })}
+                  style={{ width: '100%', fontFamily: 'monospace', fontWeight: '800' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
+                  Satuan Nilai / Ukuran
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.unit}
+                  onChange={(e) => setEditFormData({ ...editFormData, unit: e.target.value })}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setEditingCriterion(null)}
+                className="clay-badge"
+                style={{ padding: '9px 18px', backgroundColor: '#ffffff', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '13px' }}
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="clay-btn"
+                style={{ padding: '9px 22px', fontSize: '13px' }}
+              >
+                Simpan Perubahan
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {/* Modal Tambah Kriteria Baru */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Tambah Kriteria Penilaian SAW Baru">
@@ -639,8 +755,11 @@ export function CriteriaView() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '22px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
-                Bobot Preferensi (0.01 – 0.99)
+              <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
+                <span>Bobot Preferensi (0.01 – 0.99)</span>
+                <span style={{ color: 'var(--color-green-700)', fontFamily: 'monospace' }}>
+                  {Math.round((Number(formData.weight) || 0) * 100)}%
+                </span>
               </label>
               <input
                 type="number"

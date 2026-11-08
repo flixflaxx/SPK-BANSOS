@@ -1,87 +1,23 @@
 import { useState, useEffect, useRef } from 'react'
-import { Check, Scale, Plus, CheckCircle2 } from 'lucide-react'
+import { Check, Scale, Plus, CheckCircle2, AlertTriangle, Trash2, ArrowRight } from 'lucide-react'
 import { PageHeader } from '../../components/common/PageHeader.jsx'
 import { Panel } from '../../components/common/Panel.jsx'
 import { Modal } from '../../components/common/Modal.jsx'
-import { SEED_CRITERIA_VERSION } from '../../../tests/fixtures/saw/golden.js'
+import { DEFAULT_CRITERIA, DEFAULT_SUBCRITERIA_RULES } from './criteriaConstants.js'
 
-const INITIAL_SUBCRITERIA_MAP = [
-  {
-    code: 'C1',
-    name: 'Pendapatan per Bulan (Cost, W=0.25)',
-    unit: 'Rupiah',
-    rules: [
-      { category: 'Pendapatan ≤ Rp 1.000.000', rawScore: '1.000.000', priorityImpact: 'Tertinggi (Prioritas Utama)' },
-      { category: 'Rp 1.000.001 – Rp 1.500.000', rawScore: '1.500.000', priorityImpact: 'Tinggi' },
-      { category: 'Rp 1.500.001 – Rp 2.000.000', rawScore: '2.000.000', priorityImpact: 'Sedang' },
-      { category: 'Pendapatan > Rp 2.000.000', rawScore: '2.500.000+', priorityImpact: 'Rendah (Cost: nilai besar memperkecil prioritas)' },
-    ],
-  },
-  {
-    code: 'C2',
-    name: 'Jumlah Tanggungan Keluarga (Benefit, W=0.20)',
-    unit: 'Orang',
-    rules: [
-      { category: 'Tanggungan ≥ 5 orang', rawScore: '5', priorityImpact: 'Sangat Tinggi' },
-      { category: 'Tanggungan 4 orang', rawScore: '4', priorityImpact: 'Tinggi' },
-      { category: 'Tanggungan 3 orang', rawScore: '3', priorityImpact: 'Sedang' },
-      { category: 'Tanggungan 1–2 orang', rawScore: '1–2', priorityImpact: 'Rendah' },
-    ],
-  },
-  {
-    code: 'C3',
-    name: 'Kerentanan Kondisi Rumah (Benefit, W=0.15)',
-    unit: 'Skor 1–5',
-    rules: [
-      { category: 'Rumah Tidak Layak Huni Parah (Dinding bambu/lantai tanah)', rawScore: '5', priorityImpact: 'Sangat Rentan (Skor 5)' },
-      { category: 'Kondisi Rumah Rusak Sedang (Atap bocor/semi permanen)', rawScore: '4', priorityImpact: 'Rentan (Skor 4)' },
-      { category: 'Kondisi Rusak Ringan', rawScore: '3', priorityImpact: 'Cukup Rentan (Skor 3)' },
-      { category: 'Permanen Layak Huni', rawScore: '1–2', priorityImpact: 'Tidak Rentan (Skor 1–2)' },
-    ],
-  },
-  {
-    code: 'C4',
-    name: 'Anggota Keluarga Rentan (Benefit, W=0.15)',
-    unit: 'Skor 0–2',
-    rules: [
-      { category: 'Terdapat Lansia + Balita / Disabilitas Berat', rawScore: '2', priorityImpact: 'Kebutuhan Mendesak (Skor 2)' },
-      { category: 'Terdapat salah satu (Lansia saja / Balita saja)', rawScore: '1', priorityImpact: 'Kebutuhan Sedang (Skor 1)' },
-      { category: 'Tidak ada anggota keluarga rentan', rawScore: '0', priorityImpact: 'Tanpa Kategori Khusus (Skor 0)' },
-    ],
-  },
-  {
-    code: 'C5',
-    name: 'Skor Kepemilikan Aset Produktif (Cost, W=0.10)',
-    unit: 'Skor 1–3',
-    rules: [
-      { category: 'Tidak memiliki aset produktif / tanah / kendaraan usaha', rawScore: '1', priorityImpact: 'Paling Prioritas (Cost: min / x)' },
-      { category: 'Memiliki 1 unit alat kerja / motor tua operasional', rawScore: '2', priorityImpact: 'Prioritas Sedang (Skor 2)' },
-      { category: 'Memiliki ≥ 2 unit aset produktif / kendaraan bermotor', rawScore: '3', priorityImpact: 'Prioritas Rendah (Skor 3)' },
-    ],
-  },
-  {
-    code: 'C6',
-    name: 'Tingkat Desil Kesejahteraan DTKS Kemensos (Cost, W=0.15)',
-    unit: 'Tingkat Desil 1–10',
-    rules: [
-      { category: 'Desil 1 — Rumah Tangga Sangat Miskin (10% Terbawah)', rawScore: '1', priorityImpact: 'Prioritas Paling Utama Bansos (Cost: skor min 1)' },
-      { category: 'Desil 2 — Rumah Tangga Miskin (11% - 20%)', rawScore: '2', priorityImpact: 'Prioritas Tinggi Bansos (Skor 2)' },
-      { category: 'Desil 3 — Rumah Tangga Hampir Miskin (21% - 30%)', rawScore: '3', priorityImpact: 'Prioritas Sedang (Skor 3)' },
-      { category: 'Desil 4 — Rumah Tangga Rentan Miskin (31% - 40%)', rawScore: '4', priorityImpact: 'Prioritas Cadangan / PBI-JK (Skor 4)' },
-      { category: 'Desil 5 — Rumah Tangga Menengah Bawah (41% - 50%)', rawScore: '5', priorityImpact: 'Non-Bansos Reguler (Skor 5)' },
-      { category: 'Desil 6 — Rumah Tangga Menengah (51% - 60%)', rawScore: '6', priorityImpact: 'Non-Bansos (Skor 6)' },
-      { category: 'Desil 7 — Rumah Tangga Menengah (61% - 70%)', rawScore: '7', priorityImpact: 'Non-Bansos (Skor 7)' },
-      { category: 'Desil 8 — Rumah Tangga Menengah Atas (71% - 80%)', rawScore: '8', priorityImpact: 'Non-Bansos (Skor 8)' },
-      { category: 'Desil 9 — Rumah Tangga Mampu (81% - 90%)', rawScore: '9', priorityImpact: 'Non-Bansos (Skor 9)' },
-      { category: 'Desil 10 — Rumah Tangga Sangat Mampu (91% - 100% Teratas)', rawScore: '10', priorityImpact: 'Non-Bansos (Skor 10)' },
-    ],
-  },
-]
+export function SubcriteriaView({
+  criteria: propCriteria,
+  subcriteriaRules: propSubcriteriaRules,
+  onAddRule,
+  onDeleteRule,
+}) {
+  const criteria = Array.isArray(propCriteria) ? propCriteria : DEFAULT_CRITERIA
+  const [internalRules, setInternalRules] = useState(DEFAULT_SUBCRITERIA_RULES)
+  const isRulesControlled = Boolean(propSubcriteriaRules)
+  const subcriteriaRules = isRulesControlled ? propSubcriteriaRules : internalRules
 
-export function SubcriteriaView() {
-  const [subcriteriaMap, setSubcriteriaMap] = useState(INITIAL_SUBCRITERIA_MAP)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [targetCode, setTargetCode] = useState('C1')
+  const [targetCode, setTargetCode] = useState(criteria[0]?.code || 'C1')
   const [categoryInput, setCategoryInput] = useState('')
   const [scoreInput, setScoreInput] = useState('')
   const [impactInput, setImpactInput] = useState('')
@@ -89,7 +25,17 @@ export function SubcriteriaView() {
   const [toastMessage, setToastMessage] = useState('')
 
   const containerRef = useRef(null)
-  const totalWeight = SEED_CRITERIA_VERSION.criteria.reduce((sum, c) => sum + Number(c.weight), 0)
+
+  // Total weight calculated directly from active criteria
+  const totalWeight = criteria.reduce((sum, c) => sum + Number(c.weight), 0)
+  const isWeightValid = Math.abs(totalWeight - 1.0) < 0.001
+
+  // Ensure targetCode is valid when criteria changes
+  useEffect(() => {
+    if (!criteria.some((c) => c.code === targetCode) && criteria.length > 0) {
+      setTargetCode(criteria[0].code)
+    }
+  }, [criteria, targetCode])
 
   useEffect(() => {
     const anime = typeof window !== 'undefined' ? window.anime : null
@@ -103,9 +49,9 @@ export function SubcriteriaView() {
         easing: 'easeOutBack',
       })
     }
-  }, [subcriteriaMap])
+  }, [criteria, subcriteriaRules])
 
-  function handleAddRule(e) {
+  function handleAddRuleSubmit(e) {
     e.preventDefault()
     if (!categoryInput.trim() || !scoreInput.trim()) {
       setFormError('Kategori lapangan dan skor angka wajib diisi.')
@@ -118,13 +64,14 @@ export function SubcriteriaView() {
       priorityImpact: impactInput.trim() || 'Sesuai konfigurasi pengambil keputusan',
     }
 
-    setSubcriteriaMap((prev) =>
-      prev.map((sub) =>
-        sub.code === targetCode
-          ? { ...sub, rules: [...sub.rules, newRule] }
-          : sub
-      )
-    )
+    if (onAddRule) {
+      onAddRule(targetCode, newRule)
+    } else {
+      setInternalRules((prev) => ({
+        ...prev,
+        [targetCode]: [...(prev[targetCode] || []), newRule],
+      }))
+    }
 
     setIsModalOpen(false)
     setCategoryInput('')
@@ -135,17 +82,37 @@ export function SubcriteriaView() {
     setTimeout(() => setToastMessage(''), 4000)
   }
 
+  function handleDeleteRuleItem(criterionCode, ruleIndex) {
+    if (onDeleteRule) {
+      onDeleteRule(criterionCode, ruleIndex)
+    } else {
+      setInternalRules((prev) => {
+        const existing = prev[criterionCode] || []
+        return {
+          ...prev,
+          [criterionCode]: existing.filter((_, idx) => idx !== ruleIndex),
+        }
+      })
+    }
+    setToastMessage(`Aturan subkriteria pada ${criterionCode} berhasil dihapus.`)
+    setTimeout(() => setToastMessage(''), 4000)
+  }
+
   return (
     <div ref={containerRef}>
       <PageHeader
         featureNum={7}
         title="Subkriteria & Bobot Penilaian SAW"
-        description="Pemetaan kategori faktual lapangan ke skor angka matriks SAW (xᵢⱼ), termasuk integrasi Desil DTKS Kemensos."
+        description="Pemetaan kategori faktual lapangan ke skor angka matriks SAW (xᵢⱼ). Subkriteria dan bobot secara otomatis mengikuti kriteria induk yang aktif."
         actions={
           <button
             type="button"
             className="clay-btn"
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setTargetCode(criteria[0]?.code || 'C1')
+              setFormError('')
+              setIsModalOpen(true)
+            }}
             style={{
               padding: '11px 22px',
               fontSize: '13px',
@@ -197,8 +164,8 @@ export function SubcriteriaView() {
               width: '48px',
               height: '48px',
               borderRadius: '16px',
-              backgroundColor: '#edf8f3',
-              color: 'var(--color-green-700)',
+              backgroundColor: isWeightValid ? '#edf8f3' : '#fee2e2',
+              color: isWeightValid ? 'var(--color-green-700)' : '#dc2626',
             }}
           >
             <Scale size={24} />
@@ -206,12 +173,12 @@ export function SubcriteriaView() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '15px', fontWeight: '800', color: 'var(--color-green-950)' }}>
-                Status Total Bobot: Versi {SEED_CRITERIA_VERSION.label}
+                {`Status Total Bobot: ${criteria.length} Kriteria Aktif`}
               </span>
               <span className="pulse-indicator" />
             </div>
             <p style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-              Prasyarat mutlak SAW: Σ wⱼ = 1,00 (100%).
+              Prasyarat mutlak SAW: Σ wⱼ = 1,00 (100%). Subkriteria dan bobot berikut selalu tersinkronisasi otomatis dengan menu Kriteria.
             </p>
           </div>
         </div>
@@ -222,7 +189,7 @@ export function SubcriteriaView() {
               fontSize: '28px',
               fontWeight: '800',
               fontFamily: 'monospace',
-              color: 'var(--color-green-700)',
+              color: isWeightValid ? 'var(--color-green-700)' : '#dc2626',
             }}
           >
             {totalWeight.toFixed(2)}
@@ -233,85 +200,196 @@ export function SubcriteriaView() {
               fontSize: '12px',
               fontWeight: '800',
               padding: '6px 14px',
-              backgroundColor: '#edf8f3',
-              color: 'var(--color-green-700)',
+              backgroundColor: isWeightValid ? '#edf8f3' : '#fee2e2',
+              color: isWeightValid ? 'var(--color-green-700)' : '#dc2626',
             }}
           >
-            <Check size={14} />
-            <span>VALID (100%)</span>
+            {isWeightValid ? (
+              <>
+                <Check size={14} />
+                <span>VALID (100%)</span>
+              </>
+            ) : (
+              <>
+                <AlertTriangle size={14} />
+                <span>{`BELUM 100% (${(totalWeight * 100).toFixed(0)}%)`}</span>
+              </>
+            )}
           </span>
         </div>
       </div>
 
-      {/* Subcriteria Cards */}
+      {/* Subcriteria Cards Dynamically Generated from Criteria */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-        {subcriteriaMap.map((sub) => (
-          <div key={sub.code} className="subcrit-card">
-            <Panel
-              title={`${sub.code} — ${sub.name}`}
-              subtitle={`Satuan Nilai Faktual: ${sub.unit}`}
-              actions={
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTargetCode(sub.code)
-                    setIsModalOpen(true)
-                  }}
-                  className="clay-badge"
-                  style={{
-                    backgroundColor: '#ffffff',
-                    color: 'var(--color-green-700)',
-                    padding: '5px 12px',
-                    fontSize: '12px',
-                    fontWeight: '800',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  <Plus size={13} />
-                  <span>Tambah Aturan {sub.code}</span>
-                </button>
-              }
-            >
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px', fontSize: '13px' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '800', color: 'var(--color-green-950)', backgroundColor: '#eaf4ef', borderRadius: '12px 0 0 12px', fontSize: '12px', textTransform: 'uppercase' }}>Kategori Lapangan</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '800', color: 'var(--color-green-950)', backgroundColor: '#eaf4ef', width: '22%', fontSize: '12px', textTransform: 'uppercase' }}>Skor Angka (xᵢⱼ)</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '800', color: 'var(--color-green-950)', backgroundColor: '#eaf4ef', width: '38%', borderRadius: '0 12px 12px 0', fontSize: '12px', textTransform: 'uppercase' }}>Pengaruh Terhadap Prioritas</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sub.rules.map((rule, idx) => (
-                      <tr
-                        key={idx}
-                        style={{
-                          backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f9fcfb',
-                          transition: 'background-color 0.15s ease',
-                        }}
-                      >
-                        <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--color-green-950)', borderRadius: '10px 0 0 10px', borderBottom: '1px solid rgba(22, 118, 91, 0.05)' }}>
-                          {rule.category}
-                        </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'center', fontFamily: 'monospace', fontWeight: '800', color: 'var(--color-green-700)', fontSize: '14px', borderBottom: '1px solid rgba(22, 118, 91, 0.05)' }}>
-                          <span className="clay-badge" style={{ backgroundColor: '#edf8f3', padding: '3px 10px' }}>
-                            {rule.rawScore}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 16px', color: 'var(--color-text-muted)', fontSize: '12.5px', borderRadius: '0 10px 10px 0', borderBottom: '1px solid rgba(22, 118, 91, 0.05)' }}>
-                          {rule.priorityImpact}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Panel>
-          </div>
-        ))}
+        {criteria.map((c) => {
+          const rules = subcriteriaRules[c.code] || []
+          const pct = Math.round(Number(c.weight) * 100)
+          const isCost = c.type === 'COST'
+
+          return (
+            <div key={c.code} className="subcrit-card">
+              <Panel
+                title={
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'monospace', fontWeight: '800', color: 'var(--color-green-700)' }}>
+                      {c.code}
+                    </span>
+                    <span style={{ color: 'var(--color-green-950)', fontWeight: '800' }}>
+                      — {c.name}
+                    </span>
+                    <span
+                      className="clay-badge"
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        padding: '3px 9px',
+                        color: isCost ? 'var(--color-danger)' : 'var(--color-success)',
+                        backgroundColor: isCost ? 'var(--color-danger-bg)' : 'var(--color-success-bg)',
+                      }}
+                    >
+                      {isCost ? 'COST' : 'BENEFIT'}
+                    </span>
+                    <span
+                      className="clay-badge"
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        padding: '3px 9px',
+                        backgroundColor: '#edf8f3',
+                        color: 'var(--color-green-950)',
+                        fontFamily: 'monospace',
+                      }}
+                    >
+                      {`W = ${c.weight} (${pct}%)`}
+                    </span>
+                  </div>
+                }
+                subtitle={`Satuan Nilai Faktual: ${c.unit || 'Skor'} • Terdiri dari ${rules.length} aturan penjenjangan`}
+                actions={
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTargetCode(c.code)
+                      setFormError('')
+                      setIsModalOpen(true)
+                    }}
+                    className="clay-badge"
+                    style={{
+                      backgroundColor: '#ffffff',
+                      color: 'var(--color-green-700)',
+                      padding: '5px 12px',
+                      fontSize: '12px',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      border: '1px solid #d1fae5',
+                    }}
+                  >
+                    <Plus size={13} />
+                    <span>Tambah Aturan {c.code}</span>
+                  </button>
+                }
+              >
+                {rules.length === 0 ? (
+                  <div
+                    style={{
+                      padding: '24px 16px',
+                      textAlign: 'center',
+                      backgroundColor: '#f9fcfb',
+                      borderRadius: '14px',
+                      border: '1px dashed #d2ddd6',
+                    }}
+                  >
+                    <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '10px' }}>
+                      Belum ada aturan penilaian subkriteria untuk kriteria <strong>{c.code} — {c.name}</strong>.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetCode(c.code)
+                        setFormError('')
+                        setIsModalOpen(true)
+                      }}
+                      className="clay-btn"
+                      style={{ padding: '7px 16px', fontSize: '12px' }}
+                    >
+                      <Plus size={14} />
+                      <span>Buat Aturan Pertama</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px', fontSize: '13px' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '800', color: 'var(--color-green-950)', backgroundColor: '#eaf4ef', borderRadius: '12px 0 0 12px', fontSize: '12px', textTransform: 'uppercase' }}>
+                            Kategori Lapangan
+                          </th>
+                          <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '800', color: 'var(--color-green-950)', backgroundColor: '#eaf4ef', width: '20%', fontSize: '12px', textTransform: 'uppercase' }}>
+                            Skor Angka (xᵢⱼ)
+                          </th>
+                          <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '800', color: 'var(--color-green-950)', backgroundColor: '#eaf4ef', width: '36%', fontSize: '12px', textTransform: 'uppercase' }}>
+                            Pengaruh Terhadap Prioritas
+                          </th>
+                          <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '800', color: 'var(--color-green-950)', backgroundColor: '#eaf4ef', width: '10%', borderRadius: '0 12px 12px 0', fontSize: '12px', textTransform: 'uppercase' }}>
+                            Aksi
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rules.map((rule, idx) => (
+                          <tr
+                            key={idx}
+                            style={{
+                              backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f9fcfb',
+                              transition: 'background-color 0.15s ease',
+                            }}
+                          >
+                            <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--color-green-950)', borderRadius: '10px 0 0 10px', borderBottom: '1px solid rgba(22, 118, 91, 0.05)' }}>
+                              {rule.category}
+                            </td>
+                            <td style={{ padding: '12px 16px', textAlign: 'center', fontFamily: 'monospace', fontWeight: '800', color: 'var(--color-green-700)', fontSize: '14px', borderBottom: '1px solid rgba(22, 118, 91, 0.05)' }}>
+                              <span className="clay-badge" style={{ backgroundColor: '#edf8f3', padding: '3px 10px' }}>
+                                {rule.rawScore}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 16px', color: 'var(--color-text-muted)', fontSize: '12.5px', borderBottom: '1px solid rgba(22, 118, 91, 0.05)' }}>
+                              {rule.priorityImpact}
+                            </td>
+                            <td style={{ padding: '12px 16px', textAlign: 'center', borderRadius: '0 10px 10px 0', borderBottom: '1px solid rgba(22, 118, 91, 0.05)' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRuleItem(c.code, idx)}
+                                title={`Hapus aturan "${rule.category}"`}
+                                className="clay-badge"
+                                style={{
+                                  backgroundColor: '#ffffff',
+                                  color: '#dc2626',
+                                  cursor: 'pointer',
+                                  padding: '4px 8px',
+                                  border: '1px solid #fee2e2',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  fontSize: '11px',
+                                }}
+                              >
+                                <Trash2 size={12} />
+                                <span>Hapus</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Panel>
+            </div>
+          )
+        })}
       </div>
 
       {/* Modal Tambah Subkriteria */}
@@ -333,19 +411,19 @@ export function SubcriteriaView() {
           </div>
         )}
 
-        <form onSubmit={handleAddRule}>
+        <form onSubmit={handleAddRuleSubmit}>
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
-              Pilih Kriteria Induk
+              Pilih Kriteria Induk (Mengikuti Kriteria Aktif)
             </label>
             <select
               value={targetCode}
               onChange={(e) => setTargetCode(e.target.value)}
               style={{ width: '100%', padding: '10px 14px', fontSize: '13px' }}
             >
-              {subcriteriaMap.map((s) => (
-                <option key={s.code} value={s.code}>
-                  {s.code} — {s.name}
+              {criteria.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code} — {c.name} ({c.type === 'COST' ? 'Cost' : 'Benefit'}, W={c.weight})
                 </option>
               ))}
             </select>
@@ -373,7 +451,7 @@ export function SubcriteriaView() {
               <input
                 type="text"
                 required
-                placeholder="Contoh: 1, 2, 5, atau 1000000"
+                placeholder="Contoh: 5 atau 1.500.000"
                 value={scoreInput}
                 onChange={(e) => setScoreInput(e.target.value)}
                 style={{ width: '100%', fontFamily: 'monospace', fontWeight: '800' }}
@@ -385,7 +463,7 @@ export function SubcriteriaView() {
               </label>
               <input
                 type="text"
-                placeholder="Contoh: Sangat Rentan / Prioritas Utama"
+                placeholder="Contoh: Sangat Rentan (Prioritas Utama)"
                 value={impactInput}
                 onChange={(e) => setImpactInput(e.target.value)}
                 style={{ width: '100%' }}
