@@ -1,3 +1,5 @@
+import { buildCalculationRun } from '@shared/domain/saw/run.js'
+
 /**
  * Kriteria & Subkriteria Constants — Single Source of Truth
  *
@@ -57,5 +59,90 @@ export const DEFAULT_SUBCRITERIA_RULES = {
     { category: 'Desil 9 — Rumah Tangga Mampu (81% - 90%)', rawScore: '9', priorityImpact: 'Non-Bansos (Skor 9)' },
     { category: 'Desil 10 — Rumah Tangga Sangat Mampu (91% - 100% Teratas)', rawScore: '10', priorityImpact: 'Non-Bansos (Skor 10)' },
   ],
+}
+
+/**
+ * Pure Domain Helper: Menghitung ulang CalculationRun SAW secara deterministik
+ * langsung berdasarkan kriteria dan bobot yang sedang aktif di halaman Kriteria.
+ */
+export function buildRunFromCriteria({
+  criteria,
+  candidates,
+  residents,
+  assessments,
+  period,
+  currentUser,
+}) {
+  if (!Array.isArray(criteria) || criteria.length === 0) return null
+
+  const activeCriteriaVersion = {
+    id: `cv-${period?.id || 'per-01'}-${criteria.map((c) => `${c.code}${c.weight}`).join('-')}`,
+    label: `Kriteria Aktif (${criteria.length} Kriteria)`,
+    criteria: criteria.map((c) => ({
+      code: c.code,
+      name: c.name,
+      type: c.type,
+      weight: String(c.weight),
+      unit: c.unit || 'skor',
+      scale: c.scale || undefined,
+    })),
+  }
+
+  const runPeriod = {
+    ...(period || { id: 'per-01', status: 'ACTIVE' }),
+    criteriaVersionId: activeCriteriaVersion.id,
+  }
+
+  const candList = candidates || []
+  const resList = residents || []
+  const assList = assessments || []
+
+  const mergedAssessments = []
+  for (const c of candList) {
+    const res = resList.find((r) => r.id === c.residentId)
+    for (const crit of criteria) {
+      const existing = assList.find((a) => a.candidateId === c.id && a.criterionCode === crit.code)
+      if (existing && existing.rawValue !== '' && existing.rawValue !== null) {
+        mergedAssessments.push({
+          candidateId: c.id,
+          criterionCode: crit.code,
+          value: existing.rawValue,
+          status: existing.status,
+        })
+      } else if (crit.code === 'C6' || crit.name.toLowerCase().includes('desil')) {
+        mergedAssessments.push({
+          candidateId: c.id,
+          criterionCode: crit.code,
+          value: String(res?.desil || 1),
+          status: c.verificationStatus === 'VERIFIED' ? 'VALID' : 'DRAFT',
+        })
+      } else {
+        mergedAssessments.push({
+          candidateId: c.id,
+          criterionCode: crit.code,
+          value: crit.type === 'COST' ? '1' : '3',
+          status: c.verificationStatus === 'VERIFIED' ? 'VALID' : 'DRAFT',
+        })
+      }
+    }
+  }
+
+  const runInput = {
+    context: {
+      runId: `run-${Date.now()}`,
+      executedAt: new Date().toISOString(),
+      executedBy: currentUser?.id || 'usr-operator',
+    },
+    period: runPeriod,
+    criteriaVersion: activeCriteriaVersion,
+    candidates: candList.map((c) => ({
+      id: c.id,
+      periodId: c.periodId || runPeriod.id,
+      verificationStatus: c.verificationStatus,
+    })),
+    assessments: mergedAssessments,
+  }
+
+  return buildCalculationRun(runInput)
 }
 

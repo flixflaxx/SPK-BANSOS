@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AppShell } from './components/layout/AppShell.jsx'
 import { Toast } from './components/common/Toast.jsx'
-import { DEFAULT_CRITERIA, DEFAULT_SUBCRITERIA_RULES } from './features/criteria/criteriaConstants.js'
+import { DEFAULT_CRITERIA, DEFAULT_SUBCRITERIA_RULES, buildRunFromCriteria } from './features/criteria/criteriaConstants.js'
 
 // Features
 import { LoginView } from './features/auth/LoginView.jsx'
@@ -68,16 +68,6 @@ export function App() {
   const [residents, setResidents] = useState(DEMO_RESIDENTS)
   const [candidates, setCandidates] = useState(DEMO_CANDIDATES)
   const [assessments] = useState(DEMO_ASSESSMENTS)
-  const [calculationRun, setCalculationRun] = useState(() => {
-    try {
-      return createDemoCalculationRun()
-    } catch {
-      return null
-    }
-  })
-  const [decisions, setDecisions] = useState([])
-  const [auditLogs, setAuditLogs] = useState(DEMO_AUDIT_LOGS)
-  const [backupJobs, setBackupJobs] = useState(DEMO_BACKUP_JOBS)
 
   // Criteria & Subcriteria States (Single Source of Truth)
   const [criteria, setCriteria] = useState(() => {
@@ -88,6 +78,33 @@ export function App() {
       return DEFAULT_CRITERIA
     }
   })
+
+  const [calculationRun, setCalculationRun] = useState(() => {
+    try {
+      const savedCriteria = (() => {
+        try {
+          const saved = localStorage.getItem('spk_criteria_list_v1')
+          return saved ? JSON.parse(saved) : DEFAULT_CRITERIA
+        } catch {
+          return DEFAULT_CRITERIA
+        }
+      })()
+      const run = buildRunFromCriteria({
+        criteria: savedCriteria,
+        candidates: DEMO_CANDIDATES,
+        residents: DEMO_RESIDENTS,
+        assessments: DEMO_ASSESSMENTS,
+        period: DEMO_PERIODS[0],
+        currentUser: null,
+      })
+      return run || createDemoCalculationRun()
+    } catch {
+      return null
+    }
+  })
+  const [decisions, setDecisions] = useState([])
+  const [auditLogs, setAuditLogs] = useState(DEMO_AUDIT_LOGS)
+  const [backupJobs, setBackupJobs] = useState(DEMO_BACKUP_JOBS)
 
   const [subcriteriaRules, setSubcriteriaRules] = useState(() => {
     try {
@@ -114,6 +131,25 @@ export function App() {
       // Ignore in private browsing
     }
   }, [subcriteriaRules])
+
+  // Otomatis sinkronisasi perhitungan SAW saat kriteria atau bobot di halaman kriteria berubah
+  useEffect(() => {
+    try {
+      const updatedRun = buildRunFromCriteria({
+        criteria,
+        candidates,
+        residents,
+        assessments,
+        period: activePeriod,
+        currentUser,
+      })
+      if (updatedRun) {
+        setCalculationRun(updatedRun)
+      }
+    } catch (e) {
+      console.warn('Otomatis kalkulasi ulang SAW saat perubahan kriteria:', e)
+    }
+  }, [criteria, candidates, residents, assessments, activePeriod, currentUser])
 
   // Toast feedback state
   const [toast, setToast] = useState(null)
@@ -447,6 +483,7 @@ export function App() {
           candidates={candidates}
           residents={residents}
           assessments={assessments}
+          criteria={criteria}
         />
       )}
 
@@ -459,6 +496,7 @@ export function App() {
           calculationRun={calculationRun}
           currentUser={currentUser}
           onRunCalculated={handleRunCalculated}
+          criteria={criteria}
         />
       )}
 
@@ -467,6 +505,7 @@ export function App() {
           calculationRun={calculationRun}
           residents={residents}
           candidates={candidates}
+          criteria={criteria}
         />
       )}
 
@@ -475,6 +514,7 @@ export function App() {
           calculationRun={calculationRun}
           residents={residents}
           candidates={candidates}
+          criteria={criteria}
         />
       )}
 
@@ -485,6 +525,7 @@ export function App() {
           residents={residents}
           candidates={candidates}
           onNavigate={setActiveView}
+          criteria={criteria}
         />
       )}
 

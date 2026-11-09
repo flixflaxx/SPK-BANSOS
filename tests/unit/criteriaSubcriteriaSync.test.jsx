@@ -2,7 +2,21 @@ import { describe, it, expect } from 'vitest'
 import { renderToString } from 'react-dom/server'
 import { CriteriaView } from '../../src/features/criteria/CriteriaView.jsx'
 import { SubcriteriaView } from '../../src/features/criteria/SubcriteriaView.jsx'
-import { DEFAULT_CRITERIA, DEFAULT_SUBCRITERIA_RULES } from '../../src/features/criteria/criteriaConstants.js'
+import { AssessmentsView } from '../../src/features/assessments/AssessmentsView.jsx'
+import { SawCalculationView } from '../../src/features/saw/SawCalculationView.jsx'
+import { SawMatrixView } from '../../src/features/saw/SawMatrixView.jsx'
+import { SawPreferenceView } from '../../src/features/saw/SawPreferenceView.jsx'
+import {
+  DEFAULT_CRITERIA,
+  DEFAULT_SUBCRITERIA_RULES,
+  buildRunFromCriteria,
+} from '../../src/features/criteria/criteriaConstants.js'
+import {
+  DEMO_CANDIDATES,
+  DEMO_RESIDENTS,
+  DEMO_ASSESSMENTS,
+  DEMO_PERIODS,
+} from '../../src/services/mockData.js'
 
 describe('Criteria & Subcriteria Dynamic Synchronization', () => {
   it('renders CriteriaView with Edit button and default criteria list', () => {
@@ -95,6 +109,102 @@ describe('Criteria & Subcriteria Dynamic Synchronization', () => {
     expect(html).toContain('C99')
     expect(html).toContain('Kriteria Khusus Penanganan Bencana')
     expect(html).toContain('Belum ada aturan penilaian subkriteria')
+  })
+
+  it('verifies AssessmentsView renders columns dynamically based on active criteria', () => {
+    const customCriteria = [
+      { code: 'C1', name: 'Pendapatan per bulan', type: 'COST', weight: '0.40', unit: 'Rupiah' },
+      { code: 'C2', name: 'Jumlah tanggungan', type: 'BENEFIT', weight: '0.30', unit: 'orang' },
+      { code: 'C6', name: 'Tingkat Desil Kesejahteraan DTKS', type: 'COST', weight: '0.30', unit: 'Tingkat Desil' },
+    ]
+
+    const html = renderToString(
+      <AssessmentsView
+        candidates={DEMO_CANDIDATES}
+        residents={DEMO_RESIDENTS}
+        assessments={DEMO_ASSESSMENTS}
+        criteria={customCriteria}
+      />
+    )
+
+    expect(html).toContain('C1')
+    expect(html).toContain('C2')
+    expect(html).toContain('C6')
+    expect(html).toContain('W=0.40')
+    expect(html).toContain('W=0.30')
+    // C3, C4, C5 are not in customCriteria
+    expect(html).not.toContain('C3')
+    expect(html).not.toContain('C4')
+    expect(html).not.toContain('C5')
+  })
+
+  it('verifies SawCalculationView displays active criteria and weights from criteria prop', () => {
+    const customCriteria = [
+      { code: 'C1', name: 'Pendapatan', type: 'COST', weight: '0.50', unit: 'Rupiah' },
+      { code: 'C2', name: 'Tanggungan', type: 'BENEFIT', weight: '0.50', unit: 'orang' },
+    ]
+
+    const html = renderToString(
+      <SawCalculationView
+        activePeriod={DEMO_PERIODS[0]}
+        candidates={DEMO_CANDIDATES}
+        residents={DEMO_RESIDENTS}
+        assessments={DEMO_ASSESSMENTS}
+        calculationRun={null}
+        currentUser={{ id: 'usr-admin' }}
+        onRunCalculated={() => {}}
+        criteria={customCriteria}
+      />
+    )
+
+    expect(html).toContain('Kriteria &amp; Bobot Aktif Saat Ini (2 Kriteria)')
+    expect(html).toContain('W=0.50')
+    expect(html).toContain('C1 ·')
+    expect(html).toContain('C2 ·')
+  })
+
+  it('verifies buildRunFromCriteria re-calculates SAW preference and rankings dynamically when criteria/weights change', () => {
+    // Run 1: High weight on C2 (Tanggungan)
+    const criteriaSet1 = [
+      { code: 'C1', name: 'Pendapatan', type: 'COST', weight: '0.10', unit: 'Rupiah' },
+      { code: 'C2', name: 'Jumlah tanggungan', type: 'BENEFIT', weight: '0.90', unit: 'orang' },
+    ]
+
+    const run1 = buildRunFromCriteria({
+      criteria: criteriaSet1,
+      candidates: DEMO_CANDIDATES,
+      residents: DEMO_RESIDENTS,
+      assessments: DEMO_ASSESSMENTS,
+      period: DEMO_PERIODS[0],
+      currentUser: { id: 'usr-admin' },
+    })
+
+    expect(run1).toBeDefined()
+    expect(run1.criteria.length).toBe(2)
+    expect(run1.results.length).toBeGreaterThan(0)
+
+    // Run 2: High weight on C1 (Pendapatan - Cost)
+    const criteriaSet2 = [
+      { code: 'C1', name: 'Pendapatan', type: 'COST', weight: '0.90', unit: 'Rupiah' },
+      { code: 'C2', name: 'Jumlah tanggungan', type: 'BENEFIT', weight: '0.10', unit: 'orang' },
+    ]
+
+    const run2 = buildRunFromCriteria({
+      criteria: criteriaSet2,
+      candidates: DEMO_CANDIDATES,
+      residents: DEMO_RESIDENTS,
+      assessments: DEMO_ASSESSMENTS,
+      period: DEMO_PERIODS[0],
+      currentUser: { id: 'usr-admin' },
+    })
+
+    expect(run2).toBeDefined()
+    expect(run2.criteria.length).toBe(2)
+
+    // Preference scores must dynamically differ between run1 and run2 because weights changed!
+    const cand1PrefRun1 = run1.results[0].preference.exact
+    const cand1PrefRun2 = run2.results[0].preference.exact
+    expect(cand1PrefRun1).not.toEqual(cand1PrefRun2)
   })
 })
 

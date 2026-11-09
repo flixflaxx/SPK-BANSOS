@@ -4,7 +4,7 @@ import { PageHeader } from '../../components/common/PageHeader.jsx'
 import { Panel } from '../../components/common/Panel.jsx'
 import { formatExact } from '@shared/domain/saw/fraction.js'
 
-export function SawPreferenceView({ calculationRun, residents, candidates }) {
+export function SawPreferenceView({ calculationRun, residents, candidates, criteria: propCriteria }) {
   const containerRef = useRef(null)
 
   useEffect(() => {

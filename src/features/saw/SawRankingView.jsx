@@ -4,7 +4,7 @@ import { PageHeader } from '../../components/common/PageHeader.jsx'
 import { Panel } from '../../components/common/Panel.jsx'
 import { formatExact } from '@shared/domain/saw/fraction.js'
 
-export function SawRankingView({ calculationRun, activePeriod, residents, candidates, onNavigate }) {
+export function SawRankingView({ calculationRun, activePeriod, residents, candidates, onNavigate, criteria }) {
   const quota = activePeriod?.quota ?? 0
   const results = calculationRun?.results || []
   const tieBreakRule = calculationRun?.tieBreakRule
