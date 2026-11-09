@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { AppShell } from './components/layout/AppShell.jsx'
 import { Toast } from './components/common/Toast.jsx'
 import { DEFAULT_CRITERIA, DEFAULT_SUBCRITERIA_RULES, buildRunFromCriteria } from './features/criteria/criteriaConstants.js'
+import { ALL_NAV_ITEMS } from './app/navigation.js'
 
 // Features
 import { LoginView } from './features/auth/LoginView.jsx'
@@ -59,8 +60,60 @@ export function App() {
     }
   })
 
-  // Navigation state
-  const [activeView, setActiveView] = useState('dashboard')
+  // Navigation state - disinkronkan dengan URL Hash untuk mendukung tombol Back/Forward browser
+  const [activeView, setActiveView] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.replace(/^#\/?/, '').trim()
+      if (hash && ALL_NAV_ITEMS.some((item) => item.id === hash)) {
+        return hash
+      }
+    }
+    return 'dashboard'
+  })
+
+  // Fungsi navigasi yang mencatat riwayat history ke browser
+  function handleNavigate(viewId) {
+    if (!viewId) return
+    setActiveView(viewId)
+    if (typeof window !== 'undefined') {
+      const currentHash = window.location.hash.replace(/^#\/?/, '').trim()
+      if (currentHash !== viewId) {
+        window.history.pushState({ view: viewId }, '', `#/${viewId}`)
+      }
+    }
+  }
+
+  // Listener untuk tombol Back & Forward browser (Google Chrome, Firefox, dsb.)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    function handleLocationChange() {
+      const hash = window.location.hash.replace(/^#\/?/, '').trim()
+      if (hash && ALL_NAV_ITEMS.some((item) => item.id === hash)) {
+        setActiveView(hash)
+      } else if (!hash) {
+        setActiveView('dashboard')
+      }
+    }
+
+    window.addEventListener('popstate', handleLocationChange)
+    window.addEventListener('hashchange', handleLocationChange)
+
+    // Inisialisasi hash di URL saat pertama kali load jika sudah login
+    if (isLoggedIn) {
+      const currentHash = window.location.hash.replace(/^#\/?/, '').trim()
+      if (!currentHash) {
+        window.history.replaceState({ view: activeView }, '', `#/${activeView}`)
+      } else if (ALL_NAV_ITEMS.some((item) => item.id === currentHash)) {
+        setActiveView(currentHash)
+      }
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange)
+      window.removeEventListener('hashchange', handleLocationChange)
+    }
+  }, [isLoggedIn, activeView])
 
   // Domain Data States
   const [activePeriod, setActivePeriod] = useState(DEMO_PERIODS[0])
@@ -297,7 +350,7 @@ export function App() {
       requestSummary: `Kalkulasi SAW baru dieksekusi (${newRun.counts.eligible} alternatif).`,
     })
     showToast(`Kalkulasi SAW berhasil! ${newRun.results.length} alternatif masuk ranking.`, 'success')
-    setActiveView('saw-ranking')
+    handleNavigate('saw-ranking')
   }
 
   function handleRecordDecision(newDecision) {
@@ -416,6 +469,7 @@ export function App() {
         onLoginSuccess={(user) => {
           setCurrentUser(user)
           setIsLoggedIn(true)
+          handleNavigate(activeView || 'dashboard')
           try {
             sessionStorage.setItem('spk_is_logged_in_v1', 'true')
             sessionStorage.setItem('spk_auth_user_v1', JSON.stringify(user))
@@ -431,13 +485,16 @@ export function App() {
   return (
     <AppShell
       activeView={activeView}
-      onViewChange={setActiveView}
+      onViewChange={handleNavigate}
       activePeriod={activePeriod}
       currentUser={currentUser || DEMO_USERS[0]}
       onLogoutClick={() => {
         setIsLoggedIn(false)
         setCurrentUser(null)
         setActiveView('dashboard')
+        if (typeof window !== 'undefined') {
+          window.history.replaceState(null, '', window.location.pathname)
+        }
         try {
           sessionStorage.removeItem('spk_is_logged_in_v1')
           sessionStorage.removeItem('spk_auth_user_v1')
@@ -455,7 +512,7 @@ export function App() {
           candidates={candidates}
           calculationRun={calculationRun}
           auditLogs={auditLogs}
-          onNavigate={setActiveView}
+          onNavigate={handleNavigate}
         />
       )}
 
@@ -498,7 +555,7 @@ export function App() {
           subcriteriaRules={subcriteriaRules}
           onUpdateCriteria={handleUpdateCriteria}
           onResetCriteria={handleResetCriteria}
-          onNavigate={setActiveView}
+          onNavigate={handleNavigate}
         />
       )}
 
@@ -508,7 +565,7 @@ export function App() {
           subcriteriaRules={subcriteriaRules}
           onAddRule={handleAddSubcriteriaRule}
           onDeleteRule={handleDeleteSubcriteriaRule}
-          onNavigate={setActiveView}
+          onNavigate={handleNavigate}
         />
       )}
 
@@ -571,7 +628,7 @@ export function App() {
           activePeriod={activePeriod}
           residents={residents}
           candidates={candidates}
-          onNavigate={setActiveView}
+          onNavigate={handleNavigate}
           criteria={criteria}
         />
       )}
@@ -582,7 +639,7 @@ export function App() {
           activePeriod={activePeriod}
           residents={residents}
           candidates={candidates}
-          onNavigate={setActiveView}
+          onNavigate={handleNavigate}
         />
       )}
 
@@ -645,7 +702,7 @@ export function App() {
           residents={residents}
           candidates={candidates}
           auditLogs={auditLogs}
-          onNavigate={setActiveView}
+          onNavigate={handleNavigate}
         />
       )}
 
