@@ -238,7 +238,7 @@ export function LoginView({ onLoginSuccess }) {
                       setUsername(e.target.value)
                       if (error) setError('')
                     }}
-                    placeholder="Masukkan username atau email..."
+                    placeholder="Masukkan username atau email (misal: admin)..."
                     className="login-input"
                     required
                     autoComplete="username"
@@ -264,7 +264,7 @@ export function LoginView({ onLoginSuccess }) {
                       setPassword(e.target.value)
                       if (error) setError('')
                     }}
-                    placeholder="Masukkan kata sandi..."
+                    placeholder="Masukkan kata sandi (misal: admin123)..."
                     className="login-input has-toggle"
                     required
                     autoComplete="current-password"
@@ -280,7 +280,7 @@ export function LoginView({ onLoginSuccess }) {
                 </div>
 
                 <p className="login-helper-note">
-                  <span>ℹ️ Minimal 6 karakter kata sandi</span>
+                  <span>ℹ️ Minimal 6 karakter kata sandi (misal: admin123)</span>
                 </p>
               </div>
 

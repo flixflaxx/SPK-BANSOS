@@ -42,9 +42,22 @@ import {
 } from './services/mockData.js'
 
 export function App() {
-  // Authentication state
-  const [currentUser, setCurrentUser] = useState(DEMO_USERS[0]) // default logged in to Super Admin preview
-  const [isLoggedIn, setIsLoggedIn] = useState(true)
+  // Authentication state - Default: wajib login terlebih dahulu saat pertama kali buka
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('spk_auth_user_v1')
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    try {
+      return sessionStorage.getItem('spk_is_logged_in_v1') === 'true'
+    } catch {
+      return false
+    }
+  })
 
   // Navigation state
   const [activeView, setActiveView] = useState('dashboard')
@@ -113,11 +126,12 @@ export function App() {
   }
 
   function handleRecordAudit({ action, targetType, targetId, requestSummary }) {
+    const actor = currentUser || DEMO_USERS[0]
     const newLog = {
       id: `aud-${Date.now()}`,
-      actorId: currentUser.id,
-      actorName: currentUser.displayName.split(' ')[0],
-      role: currentUser.role,
+      actorId: actor.id,
+      actorName: actor.displayName.split(' ')[0],
+      role: actor.role,
       action,
       targetType,
       targetId,
@@ -321,6 +335,12 @@ export function App() {
         onLoginSuccess={(user) => {
           setCurrentUser(user)
           setIsLoggedIn(true)
+          try {
+            sessionStorage.setItem('spk_is_logged_in_v1', 'true')
+            sessionStorage.setItem('spk_auth_user_v1', JSON.stringify(user))
+          } catch {
+            // Ignore in private browsing
+          }
           showToast(`Selamat datang kembali, ${user.displayName}!`, 'success')
         }}
       />
@@ -332,9 +352,17 @@ export function App() {
       activeView={activeView}
       onViewChange={setActiveView}
       activePeriod={activePeriod}
-      currentUser={currentUser}
+      currentUser={currentUser || DEMO_USERS[0]}
       onLogoutClick={() => {
         setIsLoggedIn(false)
+        setCurrentUser(null)
+        setActiveView('dashboard')
+        try {
+          sessionStorage.removeItem('spk_is_logged_in_v1')
+          sessionStorage.removeItem('spk_auth_user_v1')
+        } catch {
+          // Ignore
+        }
         showToast('Anda telah keluar dari aplikasi.', 'info')
       }}
     >

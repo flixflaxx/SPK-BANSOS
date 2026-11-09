@@ -12,16 +12,45 @@ import { ReportsView } from '../../src/features/reports/ReportsView.jsx'
 import { DEMO_RESIDENTS, DEMO_USERS, DEMO_PERIODS, createDemoCalculationRun } from '../../src/services/mockData.js'
 
 describe('App Smoke Test & Rendering Safety', () => {
-  it('renders root App without crashing or white-screen errors', () => {
+  it('renders root App on login page initially when not logged in', () => {
     const html = renderToString(
       <ErrorBoundary>
         <App />
       </ErrorBoundary>
     )
-    expect(html).toContain('Bansos Bulak Amah')
-    expect(html).toContain('SPK')
-    expect(html).toContain('Dashboard')
+    expect(html).toContain('Bantuan Sosial Kampung Bulak Amah')
+    expect(html).toContain('Selamat Datang')
+    expect(html).toContain('Masuk ke Aplikasi')
+    expect(html).toContain('Username')
+    expect(html).toContain('Kata Sandi')
     expect(html.length).toBeGreaterThan(1000)
+  })
+
+  it('renders AppShell and Dashboard when session is logged in', () => {
+    // Simulate active session in global sessionStorage
+    const originalSessionStorage = globalThis.sessionStorage
+    globalThis.sessionStorage = {
+      getItem: (key) => {
+        if (key === 'spk_is_logged_in_v1') return 'true'
+        if (key === 'spk_auth_user_v1') return JSON.stringify(DEMO_USERS[0])
+        return null
+      },
+      setItem: () => {},
+      removeItem: () => {},
+    }
+
+    try {
+      const html = renderToString(
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
+      )
+      expect(html).toContain('Bansos Bulak Amah')
+      expect(html).toContain('Dashboard')
+      expect(html).toContain('Bambang Irawan')
+    } finally {
+      globalThis.sessionStorage = originalSessionStorage
+    }
   })
 
   it('verifies Topbar has user profile chip and NO in-app role switcher dropdown', () => {
