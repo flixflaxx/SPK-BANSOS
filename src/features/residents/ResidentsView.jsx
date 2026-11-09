@@ -14,16 +14,32 @@ import {
   ShieldCheck,
   Edit3,
   X,
+  CreditCard,
+  FileText,
 } from 'lucide-react'
 import { DataTable } from '../../components/common/DataTable.jsx'
 import { Modal } from '../../components/common/Modal.jsx'
 import { PageHeader } from '../../components/common/PageHeader.jsx'
 import { Panel } from '../../components/common/Panel.jsx'
 import { DESIL_OPTIONS, getDesilMeta } from './desilConstants.js'
+import {
+  RESIDENT_DOC_CATEGORIES,
+  getResidentDocuments,
+  formatFileSize,
+} from './residentDocuments.js'
+import { ResidentDocumentViewerModal } from './ResidentDocumentViewerModal.jsx'
 
-export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
+export function ResidentsView({
+  residents,
+  onAddResident,
+  onUpdateResident,
+  initialModalOpen = false,
+  initialEditingResident = null,
+  initialViewingDocsResident = null,
+}) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(initialModalOpen)
+  const [viewingDocsResident, setViewingDocsResident] = useState(initialViewingDocsResident)
   const [formData, setFormData] = useState({
     name: '',
     nik: '',
@@ -33,10 +49,16 @@ export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
     phone: '',
     desil: 1,
   })
+  const [uploadedFiles, setUploadedFiles] = useState({
+    kk: null,
+    ktp: null,
+    rumah: null,
+    suratRt: null,
+  })
   const [formError, setFormError] = useState('')
 
   // State untuk Pop-up Alert Edit Profil Warga (SweetAlert style)
-  const [editingResident, setEditingResident] = useState(null)
+  const [editingResident, setEditingResident] = useState(initialEditingResident)
   const [editFormData, setEditFormData] = useState({
     name: '',
     nikMasked: '',
@@ -156,6 +178,30 @@ export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
     }, 1400)
   }
 
+  function handleFileChange(catKey, e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const previewUrl =
+      typeof URL !== 'undefined' && URL.createObjectURL ? URL.createObjectURL(file) : null
+    setUploadedFiles((prev) => ({
+      ...prev,
+      [catKey]: {
+        file,
+        name: file.name,
+        size: formatFileSize(file.size),
+        type: file.type,
+        previewUrl,
+      },
+    }))
+  }
+
+  function handleRemoveFile(catKey) {
+    setUploadedFiles((prev) => ({
+      ...prev,
+      [catKey]: null,
+    }))
+  }
+
   function handleCreate(e) {
     e.preventDefault()
     if (!formData.name.trim()) {
@@ -170,6 +216,30 @@ export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
     const desilNum = Number(formData.desil || 1)
     const meta = getDesilMeta(desilNum)
 
+    // Kumpulkan dokumen yang diunggah
+    const uploadedDocsList = []
+    RESIDENT_DOC_CATEGORIES.forEach((cat) => {
+      const userFile = uploadedFiles[cat.key]
+      if (userFile) {
+        uploadedDocsList.push({
+          key: cat.key,
+          code: cat.code,
+          title: cat.title,
+          shortTitle: cat.shortTitle,
+          description: cat.description,
+          fileName: userFile.name,
+          fileSize: userFile.size,
+          mimeType: userFile.type,
+          uploadedAt: new Date().toISOString(),
+          previewUrl: userFile.previewUrl,
+          isUploaded: true,
+          status: 'TERVERIFIKASI',
+        })
+      }
+    })
+
+    const docCount = uploadedDocsList.length > 0 ? uploadedDocsList.length : 4
+
     const newResident = {
       id: `res-${Date.now()}`,
       nikMasked: masked,
@@ -179,7 +249,8 @@ export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
       addressStreet: formData.addressStreet.trim() || 'Kampung Bulak Amah',
       addressRtRw: formData.addressRtRw.trim() || '001/003',
       phone: formData.phone.trim() || '0812-****-0000',
-      documentCount: 1,
+      documentCount: docCount,
+      documents: uploadedDocsList.length > 0 ? uploadedDocsList : undefined,
       desil: desilNum,
       desilLabel: meta.label,
       dtksStatus: meta.dtksStatus,
@@ -190,6 +261,7 @@ export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
     onAddResident(newResident)
     setIsModalOpen(false)
     setFormData({ name: '', nik: '', birthDate: '', addressStreet: '', addressRtRw: '', phone: '', desil: 1 })
+    setUploadedFiles({ kk: null, ktp: null, rumah: null, suratRt: null })
     setFormError('')
   }
 
@@ -253,24 +325,51 @@ export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
     {
       key: 'documentCount',
       label: 'Bukti Berkas',
-      width: '12%',
-      render: (count) => (
-        <span
-          className="clay-badge"
-          style={{
-            fontSize: '11.5px',
-            color: 'var(--color-green-700)',
-            backgroundColor: '#edf8f3',
-            padding: '4px 10px',
-            fontWeight: '700',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-          }}
-        >
-          <FolderOpen size={13} /> {count} Dokumen
-        </span>
-      ),
+      width: '13%',
+      render: (count, row) => {
+        const docs = getResidentDocuments(row)
+        const total = docs.length || count || 4
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setViewingDocsResident(row)
+            }}
+            className="clay-badge resident-docs-btn"
+            title={`Klik untuk melihat dokumen dan berkas kependudukan milik ${row.name}`}
+            style={{
+              fontSize: '11.5px',
+              color: 'var(--fintech-primary, #087A59)',
+              backgroundColor: '#edf8f3',
+              padding: '5px 11px',
+              fontWeight: '700',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              border: '1px solid rgba(8, 122, 89, 0.28)',
+              borderRadius: '9999px',
+            }}
+          >
+            <FolderOpen size={13} />
+            <span>{total} Dokumen</span>
+            <span
+              style={{
+                fontSize: '10px',
+                backgroundColor: 'var(--fintech-primary, #087A59)',
+                color: '#ffffff',
+                borderRadius: '9999px',
+                padding: '1px 6px',
+                fontWeight: '800',
+                marginLeft: '2px',
+              }}
+            >
+              Lihat
+            </span>
+          </button>
+        )
+      },
     },
     {
       key: 'actions',
@@ -496,7 +595,7 @@ export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title="Tambah Data Warga Baru"
-        maxWidth="540px"
+        maxWidth="640px"
       >
         <form onSubmit={handleCreate} style={{ padding: '24px 26px' }}>
           {formError && (
@@ -585,7 +684,7 @@ export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
             />
           </div>
 
-          <div style={{ marginBottom: '22px' }}>
+          <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px', color: 'var(--color-green-950)' }}>
               Klasifikasi Desil Kesejahteraan (DTKS Kemensos Desil 1–10)
             </label>
@@ -603,6 +702,183 @@ export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
             <span style={{ fontSize: '11px', color: 'var(--color-text-subtle)', marginTop: '4px', display: 'block' }}>
               Klasifikasi pendataan seluruh warga dari Desil 1 (Sangat Miskin) hingga Desil 10 (Sangat Mampu).
             </span>
+          </div>
+
+          {/* ========================================================
+              INPUT BUKTI BERKAS PERSYARATAN WARGA (4 KATEGORI)
+              ======================================================== */}
+          <div
+            style={{
+              marginTop: '16px',
+              marginBottom: '22px',
+              padding: '16px',
+              borderRadius: '16px',
+              backgroundColor: '#F8FAF9',
+              border: '1px solid #E2EBE6',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <label
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  color: 'var(--color-green-950)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  margin: 0,
+                }}
+              >
+                <FolderOpen size={16} color="var(--fintech-primary, #087A59)" />
+                <span>Unggah Bukti Berkas Warga (4 Kategori)</span>
+              </label>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-subtle)' }}>
+                JPG, PNG, atau PDF (Maks. 5MB)
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                gap: '12px',
+              }}
+            >
+              {RESIDENT_DOC_CATEGORIES.map((cat) => {
+                const fileData = uploadedFiles[cat.key]
+                return (
+                  <div
+                    key={cat.key}
+                    className={`doc-upload-tile ${fileData ? 'has-file' : ''}`}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          color: cat.badgeColor,
+                          backgroundColor: cat.bgColor,
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                        }}
+                      >
+                        {cat.code} · {cat.shortTitle}
+                      </span>
+                      {fileData && (
+                        <span
+                          style={{
+                            fontSize: '10.5px',
+                            color: '#087A59',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                          }}
+                        >
+                          <CheckCircle2 size={12} /> Terpilih
+                        </span>
+                      )}
+                    </div>
+
+                    <p
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--color-text-subtle)',
+                        margin: '0 0 8px 0',
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {cat.description}
+                    </p>
+
+                    {fileData ? (
+                      <div
+                        style={{
+                          backgroundColor: '#FFFFFF',
+                          borderRadius: '8px',
+                          padding: '8px 10px',
+                          border: '1px solid #C7E6D7',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <div style={{ overflow: 'hidden', marginRight: '8px' }}>
+                          <div
+                            style={{
+                              fontSize: '11.5px',
+                              fontWeight: 700,
+                              color: 'var(--color-green-950)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              fontFamily: 'monospace',
+                            }}
+                            title={fileData.name}
+                          >
+                            {fileData.name}
+                          </div>
+                          <div style={{ fontSize: '10px', color: 'var(--color-text-subtle)' }}>
+                            {fileData.size}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFile(cat.key)}
+                          title="Hapus berkas ini"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#DC2626',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          backgroundColor: '#FFFFFF',
+                          border: '1px dashed #CBD5E1',
+                          color: 'var(--color-green-900)',
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <Plus size={13} />
+                        <span>Pilih {cat.shortTitle}</span>
+                        <input
+                          type="file"
+                          accept={cat.accept}
+                          onChange={(e) => handleFileChange(cat.key, e)}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
@@ -737,6 +1013,30 @@ export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
                       >
                         {getDesilMeta(editingResident.desil).label}
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setViewingDocsResident(editingResident)
+                        }}
+                        className="clay-badge"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '4px 12px',
+                          borderRadius: '9999px',
+                          backgroundColor: 'var(--fintech-soft-green, #E8F5EF)',
+                          border: '1px solid rgba(8, 122, 89, 0.25)',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: 'var(--fintech-primary, #087A59)',
+                          cursor: 'pointer',
+                        }}
+                        title={`Buka 4 dokumen persyaratan milik ${editingResident.name}`}
+                      >
+                        <FolderOpen size={13} />
+                        Lihat Berkas ({editingResident.documentCount || 4})
+                      </button>
                     </div>
 
                     {/* Error Banner jika ada */}
@@ -890,6 +1190,19 @@ export function ResidentsView({ residents, onAddResident, onUpdateResident }) {
           }
           return alertContent
         })()}
+
+      {/* ========================================================
+          MODAL: PRATINJAU BUKTI BERKAS & DOKUMEN WARGA (INTERAKTIF)
+          ======================================================== */}
+      <ResidentDocumentViewerModal
+        isOpen={Boolean(viewingDocsResident)}
+        onClose={() => setViewingDocsResident(null)}
+        resident={viewingDocsResident}
+        onOpenEditProfile={(res) => {
+          setViewingDocsResident(null)
+          handleOpenEditModal(res)
+        }}
+      />
     </div>
   )
 }
