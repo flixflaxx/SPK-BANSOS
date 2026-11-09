@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import {
   X,
   FolderOpen,
@@ -31,6 +32,29 @@ export function ResidentDocumentViewerModal({ isOpen, onClose, resident, onOpenE
   const [lightboxDoc, setLightboxDoc] = useState(null)
   const [actionNotice, setActionNotice] = useState(null)
 
+  // Scroll lock & Escape key listener
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && isOpen) {
+        if (lightboxDoc) {
+          setLightboxDoc(null)
+        } else {
+          onClose()
+        }
+      }
+    }
+    if (isOpen) {
+      document.body.classList.add('scroll-locked')
+      document.documentElement.classList.add('scroll-locked')
+      window.addEventListener('keydown', handleKeyDown)
+    }
+    return () => {
+      document.body.classList.remove('scroll-locked')
+      document.documentElement.classList.remove('scroll-locked')
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen, onClose, lightboxDoc])
+
   if (!isOpen || !resident) return null
 
   const documents = getResidentDocuments(resident)
@@ -62,7 +86,7 @@ export function ResidentDocumentViewerModal({ isOpen, onClose, resident, onOpenE
     window.print ? window.print() : null
   }
 
-  return (
+  const modalContent = (
     <div
       className="fintech-alert-overlay"
       role="dialog"
@@ -73,19 +97,35 @@ export function ResidentDocumentViewerModal({ isOpen, onClose, resident, onOpenE
           onClose()
         }
       }}
-      style={{ zIndex: 999990 }}
+      style={{
+        zIndex: 999999,
+        position: 'fixed',
+        inset: 0,
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        height: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        boxSizing: 'border-box',
+      }}
     >
       <div
         className="fintech-alert-popup"
         style={{
-          width: 'min(94vw, 920px)',
-          maxWidth: '920px',
-          maxHeight: 'min(92vh, 92dvh)',
+          width: 'min(94vw, 860px)',
+          maxWidth: '860px',
+          maxHeight: 'min(90vh, 90dvh)',
           display: 'flex',
           flexDirection: 'column',
           padding: 0,
           overflow: 'hidden',
           borderRadius: '24px',
+          margin: 'auto',
+          boxShadow: '0 25px 60px rgba(6, 40, 30, 0.35)',
         }}
       >
         {/* Header Modal */}
@@ -366,6 +406,11 @@ export function ResidentDocumentViewerModal({ isOpen, onClose, resident, onOpenE
       )}
     </div>
   )
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body)
+  }
+  return modalContent
 }
 
 /**
@@ -913,14 +958,14 @@ function DocumentLightbox({ doc, resident, allDocs, onClose, onSelectDoc }) {
   const prevDoc = currentIndex > 0 ? allDocs[currentIndex - 1] : null
   const nextDoc = currentIndex < allDocs.length - 1 ? allDocs[currentIndex + 1] : null
 
-  return (
+  const lightboxContent = (
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(5, 20, 15, 0.85)',
-        backdropFilter: 'blur(8px)',
-        zIndex: 999999,
+        backgroundColor: 'rgba(5, 20, 15, 0.88)',
+        backdropFilter: 'blur(10px)',
+        zIndex: 1000000,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -1048,4 +1093,9 @@ function DocumentLightbox({ doc, resident, allDocs, onClose, onSelectDoc }) {
       </div>
     </div>
   )
+
+  if (typeof document !== 'undefined') {
+    return createPortal(lightboxContent, document.body)
+  }
+  return lightboxContent
 }

@@ -67,7 +67,22 @@ export function App() {
   const [periods, setPeriods] = useState(DEMO_PERIODS)
   const [residents, setResidents] = useState(DEMO_RESIDENTS)
   const [candidates, setCandidates] = useState(DEMO_CANDIDATES)
-  const [assessments] = useState(DEMO_ASSESSMENTS)
+  const [assessments, setAssessments] = useState(() => {
+    try {
+      const saved = localStorage.getItem('spk_assessments_list_v1')
+      return saved ? JSON.parse(saved) : DEMO_ASSESSMENTS
+    } catch {
+      return DEMO_ASSESSMENTS
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('spk_assessments_list_v1', JSON.stringify(assessments))
+    } catch {
+      // Ignore in private browsing
+    }
+  }, [assessments])
 
   // Criteria & Subcriteria States (Single Source of Truth)
   const [criteria, setCriteria] = useState(() => {
@@ -241,6 +256,36 @@ export function App() {
       requestSummary: `Memperbarui status verifikasi calon ${candidateId} menjadi ${status}`,
     })
     showToast(`Status verifikasi berhasil diperbarui (${status}).`, 'success')
+  }
+
+  function handleSaveAssessments(candidateId, newValuesMap) {
+    setAssessments((prev) => {
+      const filtered = prev.filter((a) => a.candidateId !== candidateId)
+      const updated = [...filtered]
+      Object.entries(newValuesMap).forEach(([code, val]) => {
+        if (val !== '' && val !== null && val !== undefined) {
+          updated.push({
+            id: `ass-${candidateId}-${code}-${Date.now()}`,
+            candidateId,
+            criterionCode: code,
+            rawValue: String(val),
+            status: 'VALID',
+            authorId: currentUser?.id || 'usr-operator',
+            createdAt: new Date().toISOString(),
+          })
+        }
+      })
+      return updated
+    })
+    const cand = candidates.find((c) => c.id === candidateId)
+    const res = residents.find((r) => r.id === cand?.residentId)
+    handleRecordAudit({
+      action: 'ASSESSMENT_UPDATED',
+      targetType: 'Assessment',
+      targetId: candidateId,
+      requestSummary: `Menyimpan penilaian kriteria calon ${res?.name || candidateId}`,
+    })
+    showToast('Nilai kriteria calon berhasil disimpan dan matriks diperbarui.', 'success')
   }
 
   function handleRunCalculated(newRun) {
@@ -484,6 +529,8 @@ export function App() {
           residents={residents}
           assessments={assessments}
           criteria={criteria}
+          subcriteriaRules={subcriteriaRules}
+          onSaveAssessments={handleSaveAssessments}
         />
       )}
 

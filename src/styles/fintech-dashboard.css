@@ -1527,4 +1527,21 @@ html.scroll-locked {
   background-color: #F0F7F4;
 }
 
+/* ========================================================
+   INPUT NILAI PENILAIAN BUTTON & MODAL
+   ======================================================== */
+.input-nilai-btn {
+  cursor: pointer !important;
+  border: 1px solid rgba(8, 122, 89, 0.28) !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.input-nilai-btn:hover {
+  background-color: var(--fintech-primary, #087A59) !important;
+  color: #FFFFFF !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(8, 122, 89, 0.22);
+}
+
+
 
