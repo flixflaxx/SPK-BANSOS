@@ -174,6 +174,24 @@ export function App() {
   const [auditLogs, setAuditLogs] = useState(DEMO_AUDIT_LOGS)
   const [backupJobs, setBackupJobs] = useState(DEMO_BACKUP_JOBS)
 
+  // User Management State - Disimpan ke localStorage
+  const [users, setUsers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('spk_users_list_v1')
+      return saved ? JSON.parse(saved) : DEMO_USERS
+    } catch {
+      return DEMO_USERS
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('spk_users_list_v1', JSON.stringify(users))
+    } catch {
+      // Ignore in private browsing
+    }
+  }, [users])
+
   const [subcriteriaRules, setSubcriteriaRules] = useState(() => {
     try {
       const saved = localStorage.getItem('spk_subcriteria_rules_v1')
@@ -244,6 +262,44 @@ export function App() {
       requestSummary,
     }
     setAuditLogs((prev) => [newLog, ...prev])
+  }
+
+  // User Management Handlers (Admin CRUD)
+  function handleAddUser(newUser) {
+    setUsers((prev) => [newUser, ...prev])
+    handleRecordAudit({
+      action: 'USER_CREATED',
+      targetType: 'USER',
+      targetId: newUser.id,
+      requestSummary: `Menambahkan pengguna baru: ${newUser.displayName} (${newUser.role})`,
+    })
+    showToast(`Pengguna "${newUser.displayName}" berhasil ditambahkan.`, 'success')
+  }
+
+  function handleUpdateUser(updatedUser) {
+    setUsers((prev) =>
+      prev.map((u) => (u.id === updatedUser.id ? { ...u, ...updatedUser } : u))
+    )
+    handleRecordAudit({
+      action: 'USER_UPDATED',
+      targetType: 'USER',
+      targetId: updatedUser.id,
+      requestSummary: `Memperbarui data pengguna: ${updatedUser.displayName} (${updatedUser.role})`,
+    })
+    showToast(`Data pengguna "${updatedUser.displayName}" berhasil diperbarui.`, 'success')
+  }
+
+  function handleDeleteUser(userId) {
+    const targetUser = users.find((u) => u.id === userId)
+    if (!targetUser) return
+    setUsers((prev) => prev.filter((u) => u.id !== userId))
+    handleRecordAudit({
+      action: 'USER_DELETED',
+      targetType: 'USER',
+      targetId: userId,
+      requestSummary: `Menghapus akun pengguna: ${targetUser.displayName} (${targetUser.role})`,
+    })
+    showToast(`Pengguna "${targetUser.displayName}" berhasil dihapus.`, 'info')
   }
 
   // Feature Handlers
@@ -693,7 +749,15 @@ export function App() {
         />
       )}
 
-      {activeView === 'users' && <UsersView users={DEMO_USERS} />}
+      {activeView === 'users' && (
+        <UsersView
+          users={users}
+          currentUser={currentUser}
+          onAddUser={handleAddUser}
+          onUpdateUser={handleUpdateUser}
+          onDeleteUser={handleDeleteUser}
+        />
+      )}
 
       {activeView === 'audit' && <AuditView auditLogs={auditLogs} />}
 

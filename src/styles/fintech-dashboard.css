@@ -1543,5 +1543,59 @@ html.scroll-locked {
   box-shadow: 0 4px 12px rgba(8, 122, 89, 0.22);
 }
 
+/* ========================================================
+   USER MANAGEMENT ACTION BUTTONS & ACCESS CONTROLS
+   ======================================================== */
+.user-action-btn-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background-color: var(--fintech-soft-green, #E8F5EF);
+  color: var(--fintech-primary, #087A59);
+  border: 1px solid rgba(8, 122, 89, 0.25);
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.user-action-btn-edit:hover {
+  background-color: #D1EADE;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(8, 122, 89, 0.18);
+}
+
+.user-action-btn-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background-color: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FECACA;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.user-action-btn-delete:hover:not(:disabled) {
+  background-color: #FEE2E2;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.18);
+}
+
+.user-action-btn-delete:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background-color: #F1F5F9;
+  border-color: #E2E8F0;
+  color: #94A3B8;
+}
+
+
 
 
