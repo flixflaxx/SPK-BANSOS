@@ -32,7 +32,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = '560px' }) 
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(9, 41, 31, 0.52)',
+        backgroundColor: 'rgba(9, 41, 31, 0.45)',
         backdropFilter: 'blur(6px)',
         WebkitBackdropFilter: 'blur(6px)',
         display: 'flex',
@@ -46,7 +46,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = '560px' }) 
       }}
     >
       <div
-        className="clay-card modal-dialog"
+        className="fintech-alert-popup modal-dialog"
         style={{
           width: '100%',
           maxWidth,
@@ -54,27 +54,32 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = '560px' }) 
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          borderRadius: '28px',
-          border: 'none',
+          borderRadius: '20px',
+          border: '1px solid var(--fintech-border, #EDF0EE)',
+          backgroundColor: '#FFFFFF',
+          boxShadow: '0 20px 48px rgba(0, 0, 0, 0.16)',
+          padding: 0,
         }}
       >
         <div
           className="modal-header"
           style={{
-            padding: '20px 26px',
+            padding: '18px 24px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            backgroundColor: '#edf8f3',
+            backgroundColor: '#FFFFFF',
+            borderBottom: '1px solid var(--fintech-border, #EDF0EE)',
           }}
         >
           <h2
             id="modal-title"
             style={{
-              fontSize: '18px',
+              fontSize: '17px',
               fontWeight: '800',
-              color: 'var(--color-green-950)',
-              fontFamily: 'var(--font-heading)',
+              color: 'var(--fintech-text-primary, #172B25)',
+              fontFamily: "var(--font-heading, 'Manrope Variable', sans-serif)",
+              margin: 0,
             }}
           >
             {title}
@@ -83,25 +88,43 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = '560px' }) 
             type="button"
             onClick={onClose}
             aria-label="Tutup jendela modal"
-            className="clay-bubble"
             style={{
-              width: '34px',
-              height: '34px',
+              width: '32px',
+              height: '32px',
               borderRadius: '50%',
-              backgroundColor: '#ffffff',
-              color: 'var(--color-text-muted)',
+              backgroundColor: '#F4F6F5',
+              border: '1px solid var(--fintech-border, #EDF0EE)',
+              color: 'var(--fintech-text-secondary, #84918B)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#E8ECE9'
+              e.currentTarget.style.color = 'var(--fintech-text-primary, #172B25)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#F4F6F5'
+              e.currentTarget.style.color = 'var(--fintech-text-secondary, #84918B)'
             }}
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
-        <div className="modal-body" style={{ padding: '24px', overflowY: 'auto' }}>{children}</div>
+        <div
+          className="modal-body"
+          style={{
+            padding: '22px 24px',
+            overflowY: 'auto',
+            maxHeight: 'calc(90vh - 70px)',
+          }}
+        >
+          {children}
+        </div>
       </div>
     </div>
   )
@@ -109,6 +132,5 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = '560px' }) 
   if (typeof document !== 'undefined') {
     return createPortal(modalNode, document.body)
   }
-
   return modalNode
 }
